@@ -12,7 +12,8 @@ http://development.psychencode.org/#
 
 We will analyze SCZ genes from Trubetskoy et al. GWAS (https://www.nature.com/articles/s41586-022-04434-5).
 
-hMAGMA analysis is performed to map the SNPs into genes, using both positional mapping, eQTLs and HiC interactions. The list of genes is shared between authors.
+hMAGMA analysis is performed to map the SNPs into genes, using both positional mapping, eQTLs and HiC interactions.
+The list of Schizophrenia genes is in the SCZ_genes.xlsx file.
 
 ## Objectives
 - Learn to model RNA-seq data with Bayesian approach
