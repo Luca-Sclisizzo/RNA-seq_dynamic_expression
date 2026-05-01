@@ -28,7 +28,6 @@ scz_genes <- readxl::read_excel("SCZ_genes.xlsx")
 scz_genes <- scz_genes %>%
   dplyr::left_join(
     gene_data %>%
-      dplyr::rename(biomart_transcript_length = transcript_length),
     by = c("GENE" = "ensembl_gene_id")
   ) %>%
   dplyr::group_by(GENE) %>%
@@ -49,9 +48,9 @@ counts <- read.delim(
   tibble::column_to_rownames("ensembl_gene_id") %>%
   select(-"gene_name")
 
-rownames(counts)
-
 group <- sub("\\..*$", "", colnames(counts))
 dge <- edgeR::DGEList(counts = counts, group = group)
 keep <- edgeR::filterByExpr(dge)
 dge <- dge[keep, , keep.lib.sizes=FALSE]
+
+str(dge)
