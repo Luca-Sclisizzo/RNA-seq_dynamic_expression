@@ -14,17 +14,28 @@ library("tidyr")
 library("readxl")
 library("tibble")
 
-
-ensembl <- useEnsembl(
-  biomart = "genes",
-  dataset = "hsapiens_gene_ensembl"
-)
-gene_data <- getBM(
-  attributes = c("ensembl_gene_id", "transcript_length"),
-  mart = ensembl
-)
-
+transcript_lengths_file <- "transcript_lengths.csv"
 scz_genes <- readxl::read_excel("SCZ_genes.xlsx")
+if (file.exists(transcript_lengths_file)) {
+  print("Loading transcript lengths from file...")
+  gene_data <- read.csv(transcript_lengths_file)
+} else {
+  ensembl <- useEnsembl(
+    biomart = "genes",
+    dataset = "hsapiens_gene_ensembl"
+  )
+  gene_data <- getBM(
+    attributes = c("ensembl_gene_id", "transcript_length"),
+    mart = ensembl
+  )
+  print("Storing transcript lengths to file...")
+  write.csv(
+    gene_data %>%
+      dplyr::filter(.data$ensembl_gene_id %in% scz_genes$GENE),
+    transcript_lengths_file
+  )
+}
+
 # For each gene of interest, keep only the longest transcript
 scz_genes <- scz_genes %>%
   dplyr::left_join(
@@ -53,10 +64,3 @@ group <- sub("\\..*$", "", colnames(counts))
 dge <- edgeR::DGEList(counts = counts, group = group)
 keep <- edgeR::filterByExpr(dge)
 dge <- dge[keep, , keep.lib.sizes=FALSE]
-
-
-
-
-
-
-str(dge)
