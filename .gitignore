@@ -47,3 +47,8 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+.positai
+*.Rproj
+
+# Renv folder
+renv/
