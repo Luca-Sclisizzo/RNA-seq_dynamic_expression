@@ -52,3 +52,7 @@ rsconnect/
 
 # Renv folder
 renv/
+
+# Excel and text files
+*.xlsx
+*.txt
