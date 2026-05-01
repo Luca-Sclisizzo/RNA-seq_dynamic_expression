@@ -8,7 +8,6 @@ Sys.unsetenv("ENSEMBL_MART_HOST")
 
 library("biomaRt")
 library("edgeR")
-
 library("dplyr")
 library("tidyr")
 library("readxl")
@@ -16,9 +15,14 @@ library("tibble")
 
 transcript_lengths_file <- "transcript_lengths.csv"
 scz_genes <- readxl::read_excel("SCZ_genes.xlsx")
+
 if (file.exists(transcript_lengths_file)) {
   print("Loading transcript lengths from file...")
   gene_data <- read.csv(transcript_lengths_file)
+  
+  gene_data <- gene_data %>%
+    dplyr::rename(ensembl_gene_id = ensemble_gene_id) %>%
+    dplyr::rename(transcript_length = trnascript_length)
 } else {
   ensembl <- useEnsembl(
     biomart = "genes",
@@ -64,3 +68,27 @@ group <- sub("\\..*$", "", colnames(counts))
 dge <- edgeR::DGEList(counts = counts, group = group)
 keep <- edgeR::filterByExpr(dge)
 dge <- dge[keep, , keep.lib.sizes=FALSE]
+
+# Norm methods
+normalization_methods <- c("TMM","RLE","upperquartile","none") # possiamo pensare di parralelizzare questi jobs
+
+for (norm in normalization_methods){ # let's see if the normalization method influences the transcriptomic trajectory
+  dge <- edgeR::calcNormFactors(dge, method = norm)
+  dge <- dge[rownames(dge) %in% scz_genes$GENE, ] # I have a drops of ~20 genes
+  
+  scz_genes <- scz_genes[ # reordering to avoid problems
+    match(rownames(dge), scz_genes$GENE),
+  ]
+  
+  logRPKM <- edgeR::rpkm(dge,
+                        gene.length = scz_genes$transcript_length,
+                        normalized.lib.size = TRUE, log = TRUE, prior.count = 1) # log and prior.count to avoid 0's problems
+
+  
+  # ANNOTATIONS: la funzione edgeR::rpkm() tiene conto dell'appartenza ai gruppi, lasciamo cosí?
+  # O lasciamo che la gerarchia sia presa totalmente dal modello gerarchico downstream?
+  # Mi chiedevo se mettendo group nella normalizzazione edgeR prendesse parte della "varianza gerarchica"
+  # should we take into account also the zero inflation for the model?
+  
+  
+}
