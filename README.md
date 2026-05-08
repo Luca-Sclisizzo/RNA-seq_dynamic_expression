@@ -23,3 +23,33 @@ The list of Schizophrenia genes is in the SCZ_genes.xlsx file.
 
 ## Notes
 This repository is intended for training and educational purposes.
+
+## How to run on HPC
+* Make sure you have `Rv4.4.1`
+    * Install it system-wide
+    * Load a corresponding HPC module
+    * Install it inside a conda environment with `conda create -n my_r_env
+      conda-forge::r=4.4.1`
+* Initialize and restore the R virtual environment
+```bash
+cd /path/to/here || exit 1
+conda activate my_r_env
+R
+> renv::restore()
+> It looks like you've called renv::restore() in a project that hasn't been activated yet.
+How would you like to proceed?
+
+1: Activate the project and use the project library.
+2: Do not activate the project and use the current library paths.
+3: Cancel and resolve the situation another way.
+
+Selection: 1
+```
+* Run the [`sbatch_me.sh`](./sbatch_me.sh) script, after adjusting it to reflect
+  the path you cloned this repo in and the absolute path of your Rscript
+  interpreter, e.g.:
+  ```bash
+    /path/to/miniconda3/envs/R4.4/bin/Rscript \
+        /path/to/RNA-seq_training/preprocess_counts.R \
+        "$norm"
+  ```
