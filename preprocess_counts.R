@@ -18,12 +18,24 @@ library("tidyr")
 cores <- parallel::detectCores()
 options(mc.cores = cores)
 
+# Parsing CLI argument (normalization method)
+norm <- args[1]
+normalization_methods <- c("TMM","RLE","upperquartile","none")
+if (! norm %in% normalization_methods) {
+  stop(sprintf(
+    "Unknown or missing normalization method: '%s'", norm
+  ))
+}
+
 # Loading files
 transcript_lengths_file <- "transcript_lengths.csv"
 scz_genes <- readxl::read_excel("SCZ_genes.xlsx")
-sample_metadata <- read.csv("mRNA-seq_Sample metadata.csv", sep = ';', na.strings = c("NA", "")) %>%
+sample_metadata <- read.csv(
+  "mRNA-seq_Sample metadata.csv",
+  sep = ';',
+  na.strings = c("NA", "")
+) %>%
   dplyr::filter(!is.na(Braincode) & Ethnicity == "European")
-
 
 if (file.exists(transcript_lengths_file)) {
   print("Loading transcript lengths from file...")
@@ -80,66 +92,54 @@ counts <- read.delim(
       )
     ]
   )
-  
-
 
 ##### Normalization factor for RNA-seq data ##### 
-group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
-dge <- edgeR::DGEList(counts = counts, group = group)
+#group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
+dge <- edgeR::DGEList(counts = counts) #, group = group)
 keep <- edgeR::filterByExpr(dge)
 dge <- dge[keep, , keep.lib.sizes=FALSE]
 
-# Norm methods
-#normalization_methods <- c("TMM","RLE","upperquartile","none") # possiamo pensare di parralelizzare questi jobs
-normalization_methods <- c("TMM") # giusto per fare il primo run e vedere se funziona
+# Normalize
+dge <- edgeR::calcNormFactors(dge, method = norm)
+dge <- dge[rownames(dge) %in% scz_genes$GENE, ] # I have a drops of ~20 genes
+dge <- dge[, dge$samples$group %in% sample_metadata$Braincode] # Filtering only the EUR samples
 
+scz_genes <- scz_genes[ # reordering to avoid problems
+  match(rownames(dge), scz_genes$GENE),
+]
 
-for (norm in normalization_methods){ # let's see if the normalization method influences the transcriptomic trajectory
-  dge <- edgeR::calcNormFactors(dge, method = norm)
-  dge <- dge[rownames(dge) %in% scz_genes$GENE, ] # I have a drops of ~20 genes
-  dge <- dge[, dge$samples$group %in% sample_metadata$Braincode] # Filtering only the EUR samples
-  
-  
-  scz_genes <- scz_genes[ # reordering to avoid problems
-    match(rownames(dge), scz_genes$GENE),
-  ]
-  
-  logRPKM <- edgeR::rpkm(dge,
-                        gene.length = scz_genes$transcript_length,
-                        normalized.lib.size = TRUE, log = TRUE, prior.count = 1) # log and prior.count to avoid 0's problems
-  logRPKM_reshaped <- as.data.frame(logRPKM) %>%
-    rownames_to_column("gene") %>%
-    pivot_longer(
-      cols = -gene,
-      names_to = "sample",
-      values_to = "expression"
-    ) %>%
-    tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
-    left_join(
-      sample_metadata %>%
-        select("Braincode", "Days", "Sex", "Sequencing.Site"),
-      by = c("subject" = "Braincode"),
-    )
-  inference_result <- rstanarm::stan_glmer(
-    expression ~ ns(Days, df = 4) +
-      (1 | gene) +
-      (1 | area) +
-      (1 | Sex) +
-      (1 | subject) +
-      (1 | Sequencing.Site),
-    data = logRPKM_reshaped,
-    family = neg_binomial_2,
-    chains = cores
+logRPKM <- edgeR::rpkm(dge,
+                      gene.length = scz_genes$transcript_length,
+                      normalized.lib.size = TRUE, log = TRUE, prior.count = 1) # log and prior.count to avoid 0's problems
+logRPKM_reshaped <- as.data.frame(logRPKM) %>%
+  rownames_to_column("gene") %>%
+  pivot_longer(
+    cols = -gene,
+    names_to = "sample",
+    values_to = "expression"
+  ) %>%
+  tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
+  left_join(
+    sample_metadata %>%
+      select("Braincode", "Days", "Sex", "Sequencing.Site"),
+    by = c("subject" = "Braincode"),
   )
-  saveRDS(
-    object = inference_result,
-    file = "scz_expression_rstan_regression.rds"
-  )
-  # ANNOTATIONS: la funzione edgeR::rpkm() tiene conto dell'appartenza ai gruppi, lasciamo cosí?
-  # O lasciamo che la gerarchia sia presa totalmente dal modello gerarchico downstream?
-  # Mi chiedevo se mettendo group nella normalizzazione edgeR prendesse parte della "varianza gerarchica"
-  # should we take into account also the zero inflation for the model?
-  
-  
-}
-
+inference_result <- rstanarm::stan_glmer(
+  expression ~ ns(Days, df = 4) +
+    (1 | gene) +
+    (1 | area) +
+    (1 | Sex) +
+    (1 | subject) +
+    (1 | Sequencing.Site),
+  data = logRPKM_reshaped,
+  family = neg_binomial_2,
+  chains = cores
+)
+saveRDS(
+  object = inference_result,
+  file = "scz_expression_rstan_regression.rds"
+)
+# ANNOTATIONS: la funzione edgeR::rpkm() tiene conto dell'appartenza ai gruppi, lasciamo cosí?
+# O lasciamo che la gerarchia sia presa totalmente dal modello gerarchico downstream?
+# Mi chiedevo se mettendo group nella normalizzazione edgeR prendesse parte della "varianza gerarchica"
+# should we take into account also the zero inflation for the model?
