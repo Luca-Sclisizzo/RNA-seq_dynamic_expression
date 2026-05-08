@@ -26,8 +26,9 @@ cores <- parallel::detectCores()
 options(mc.cores = cores)
 
 # Parsing CLI argument (normalization method)
+args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
-normalization_methods <- c("TMM","RLE","upperquartile","none")
+normalization_methods <- c("TMM", "RLE", "upperquartile", "none")
 if (! norm %in% normalization_methods) {
   stop(sprintf(
     "Unknown or missing normalization method: '%s'", norm
