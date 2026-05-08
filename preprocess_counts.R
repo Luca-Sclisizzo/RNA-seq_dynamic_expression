@@ -22,10 +22,7 @@ suppressPackageStartupMessages({
   library("tidyr")
 })
 
-cores <- parallel::detectCores()
-options(mc.cores = cores)
-
-# Parsing CLI argument (normalization method)
+# Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
 normalization_methods <- c("TMM", "RLE", "upperquartile", "none")
@@ -34,6 +31,13 @@ if (! norm %in% normalization_methods) {
     "Unknown or missing normalization method: '%s'", norm
   ))
 }
+cores <- as.integer(args[2])
+if (is.na(cores)) {
+  cores <- parallel::detectCores()
+}
+print(sprintf("Running in parallel over %d cores", cores))
+options(mc.cores = cores)
+stop()
 
 # Loading files
 transcript_lengths_file <- "transcript_lengths.csv"
@@ -174,7 +178,7 @@ inference_result <- rstanarm::stan_glmer(
     (1 | Sequencing.Site),
   data = int_RPKM_reshaped,  # logRPKM_reshaped,
   family = neg_binomial_2,
-  chains = cores,
+  chains = min(4, cores),
   cores = cores,
 )
 saveRDS(
