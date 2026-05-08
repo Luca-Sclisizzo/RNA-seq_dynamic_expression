@@ -115,9 +115,8 @@ for (norm in normalization_methods){ # let's see if the normalization method inf
     left_join(
       sample_metadata %>%
         select("Braincode", "Days", "Sex", "Sequencing.Site"),
-      by = c("subject", "Braincode"),
-    ) %>%
-    select(-"Braincode")
+      by = c("subject" = "Braincode"),
+    )
   rstanarm::stan_glmer(
     logRPKM
   )
