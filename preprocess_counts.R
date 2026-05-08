@@ -37,7 +37,6 @@ if (is.na(cores)) {
 }
 print(sprintf("Running in parallel over %d cores", cores))
 options(mc.cores = cores)
-stop()
 
 # Loading files
 transcript_lengths_file <- "transcript_lengths.csv"
