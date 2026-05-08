@@ -1,7 +1,33 @@
 {
     "cSpell.words": [
-        "Bioc",
-        "bioma",
-        "pkgs"
+        "BiocManager",
+        "biomart",
+        "Braincode",
+        "cpus",
+        "ENSEMBL",
+        "gencode",
+        "Geneid",
+        "glmer",
+        "hsapiens",
+        "httr",
+        "nochr",
+        "pkgdown",
+        "pkgs",
+        "positai",
+        "Rapp",
+        "Rcheck",
+        "readxl",
+        "Renviron",
+        "rpkm",
+        "Rproj",
+        "rsconnect",
+        "Rscript",
+        "rstan",
+        "rstanarm",
+        "Ruserdata",
+        "sbatch",
+        "tibble",
+        "ungroup",
+        "upperquartile"
     ]
 }

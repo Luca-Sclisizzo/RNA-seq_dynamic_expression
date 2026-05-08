@@ -51,7 +51,6 @@ if (file.exists(transcript_lengths_file)) {
   
   gene_data <- gene_data %>%
     dplyr::rename(ensembl_gene_id = ensemble_gene_id) %>%
-    dplyr::rename(transcript_length = trnascript_length) # Typo fix
 } else {
   ensembl <- useEnsembl(
     biomart = "genes",
@@ -71,7 +70,7 @@ if (file.exists(transcript_lengths_file)) {
 
 # For each gene of interest, keep only the longest transcript
 scz_genes <- scz_genes %>%
-  dplyr::left_join( # adding gene lenght
+  dplyr::left_join( # adding gene length
     gene_data,
     by = c("GENE" = "ensembl_gene_id")
   ) %>%
