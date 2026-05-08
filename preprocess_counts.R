@@ -102,7 +102,7 @@ counts <- read.delim(
   )
 
 ##### Normalization factor for RNA-seq data ##### 
-#group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
+# group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
 dge <- edgeR::DGEList(counts = counts) #, group = group)
 keep <- edgeR::filterByExpr(dge)
 dge <- dge[keep, , keep.lib.sizes=FALSE]
@@ -110,7 +110,7 @@ dge <- dge[keep, , keep.lib.sizes=FALSE]
 # Normalize
 dge <- edgeR::calcNormFactors(dge, method = norm)
 dge <- dge[rownames(dge) %in% scz_genes$GENE, ] # I have a drops of ~20 genes
-dge <- dge[, dge$samples$group %in% sample_metadata$Braincode] # Filtering only the EUR samples
+# dge <- dge[, dge$samples$group %in% sample_metadata$Braincode] # Filtering only the EUR samples
 
 scz_genes <- scz_genes[ # reordering to avoid problems
   match(rownames(dge), scz_genes$GENE),
@@ -132,6 +132,7 @@ logRPKM_reshaped <- as.data.frame(logRPKM) %>%
       select("Braincode", "Days", "Sex", "Sequencing.Site"),
     by = c("subject" = "Braincode"),
   )
+
 inference_result <- rstanarm::stan_glmer(
   expression ~ ns(Days, df = 4) +
     (1 | gene) +
