@@ -50,7 +50,7 @@ if (file.exists(transcript_lengths_file)) {
   gene_data <- read.csv(transcript_lengths_file)
   
   gene_data <- gene_data %>%
-    dplyr::rename(ensembl_gene_id = ensemble_gene_id) %>%
+    dplyr::rename(ensembl_gene_id = ensemble_gene_id)
 } else {
   ensembl <- useEnsembl(
     biomart = "genes",
