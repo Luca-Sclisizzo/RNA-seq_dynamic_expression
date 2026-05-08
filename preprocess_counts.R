@@ -182,7 +182,11 @@ inference_result <- rstanarm::stan_glmer(
 )
 saveRDS(
   object = inference_result,
-  file = "scz_expression_rstan_regression.rds"
+  file = paste0(
+    "scz_expression_rstan_regression_",
+    norm,
+    ".rds"
+  )
 )
 # ANNOTATIONS: la funzione edgeR::rpkm() tiene conto dell'appartenza ai gruppi, lasciamo cosí?
 # O lasciamo che la gerarchia sia presa totalmente dal modello gerarchico downstream?
