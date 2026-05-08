@@ -7,11 +7,13 @@ Sys.unsetenv("BIOMART_HOST")
 Sys.unsetenv("ENSEMBL_MART_HOST")
 
 library("biomaRt")
-library("edgeR")
 library("dplyr")
-library("tidyr")
+library("edgeR")
 library("readxl")
+library("rstanarm")
+library("splines")
 library("tibble")
+library("tidyr")
 
 # Loading files
 transcript_lengths_file <- "transcript_lengths.csv"
@@ -65,7 +67,7 @@ counts <- read.delim(
   sep = "\t"
 ) %>%
   tidyr::separate_wider_delim(
-    Geneid, delim = "|", names = c("ensembl_gene_id", "gene_name")
+    Geneid, delim = "|", names = c("ensembl_gene_id", "gene.name")
   ) %>%
   tibble::column_to_rownames("ensembl_gene_id") %>%
   select(
@@ -75,6 +77,7 @@ counts <- read.delim(
       )
     ]
   )
+  
 
 
 ##### Normalization factor for RNA-seq data ##### 
@@ -101,8 +104,23 @@ for (norm in normalization_methods){ # let's see if the normalization method inf
   logRPKM <- edgeR::rpkm(dge,
                         gene.length = scz_genes$transcript_length,
                         normalized.lib.size = TRUE, log = TRUE, prior.count = 1) # log and prior.count to avoid 0's problems
-
-  
+  logRPKM_reshaped <- as.data.frame(logRPKM) %>%
+    rownames_to_column("gene") %>%
+    pivot_longer(
+      cols = -gene,
+      names_to = "sample",
+      values_to = "expression"
+    ) %>%
+    tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
+    left_join(
+      sample_metadata %>%
+        select("Braincode", "Days", "Sex", "Sequencing.Site"),
+      by = c("subject", "Braincode"),
+    ) %>%
+    select(-"Braincode")
+  rstanarm::stan_glmer(
+    logRPKM
+  )
   # ANNOTATIONS: la funzione edgeR::rpkm() tiene conto dell'appartenza ai gruppi, lasciamo cosí?
   # O lasciamo che la gerarchia sia presa totalmente dal modello gerarchico downstream?
   # Mi chiedevo se mettendo group nella normalizzazione edgeR prendesse parte della "varianza gerarchica"
@@ -110,3 +128,4 @@ for (norm in normalization_methods){ # let's see if the normalization method inf
   
   
 }
+
