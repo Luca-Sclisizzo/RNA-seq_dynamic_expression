@@ -59,6 +59,7 @@ scz_genes <- scz_genes %>%
   dplyr::ungroup()
 
 # reading RNA-seq reads and preprocessing
+# We only keep cortical areas (the ones ending in C, except CDC)
 counts <- read.delim(
   "mRNA-seq_hg38.gencode21.wholeGene.geneComposite.STAR.nochrM.gene.count.txt",
   sep = "\t"
@@ -67,7 +68,13 @@ counts <- read.delim(
     Geneid, delim = "|", names = c("ensembl_gene_id", "gene_name")
   ) %>%
   tibble::column_to_rownames("ensembl_gene_id") %>%
-  select(-"gene_name")
+  select(
+    names(.)[
+      sapply(strsplit(names(.), "\\."), \(x)
+             endsWith(x[2], "C") && x[2] != "CBC"
+      )
+    ]
+  )
 
 
 ##### Normalization factor for RNA-seq data ##### 
