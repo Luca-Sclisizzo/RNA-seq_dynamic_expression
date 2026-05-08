@@ -15,6 +15,9 @@ library("splines")
 library("tibble")
 library("tidyr")
 
+cores <- parallel::detectCores()
+options(mc.cores = cores)
+
 # Loading files
 transcript_lengths_file <- "transcript_lengths.csv"
 scz_genes <- readxl::read_excel("SCZ_genes.xlsx")
@@ -117,8 +120,20 @@ for (norm in normalization_methods){ # let's see if the normalization method inf
         select("Braincode", "Days", "Sex", "Sequencing.Site"),
       by = c("subject" = "Braincode"),
     )
-  rstanarm::stan_glmer(
-    logRPKM
+  inference_result <- rstanarm::stan_glmer(
+    expression ~ ns(Days, df = 4) +
+      (1 | gene) +
+      (1 | area) +
+      (1 | Sex) +
+      (1 | subject) +
+      (1 | Sequencing.Site),
+    data = logRPKM_reshaped,
+    family = neg_binomial_2,
+    chains = cores
+  )
+  saveRDS(
+    object = inference_result,
+    file = "scz_expression_rstan_regression.rds"
   )
   # ANNOTATIONS: la funzione edgeR::rpkm() tiene conto dell'appartenza ai gruppi, lasciamo cosí?
   # O lasciamo che la gerarchia sia presa totalmente dal modello gerarchico downstream?
