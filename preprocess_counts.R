@@ -1,8 +1,13 @@
 if (!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 
-BiocManager::install("biomaRt")
-BiocManager::install("edgeR")
+pkgs <- c("biomaRt", "edgeR")
+
+for (p in pkgs) {
+  if (!requireNamespace(p, quietly = TRUE)) {
+    BiocManager::install(p)
+  }
+}
 Sys.unsetenv("BIOMART_HOST")
 Sys.unsetenv("ENSEMBL_MART_HOST")
 
