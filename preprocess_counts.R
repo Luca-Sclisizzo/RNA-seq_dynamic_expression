@@ -142,7 +142,8 @@ inference_result <- rstanarm::stan_glmer(
     (1 | Sequencing.Site),
   data = logRPKM_reshaped,
   family = neg_binomial_2,
-  chains = cores
+  chains = cores,
+  cores = cores,
 )
 saveRDS(
   object = inference_result,
