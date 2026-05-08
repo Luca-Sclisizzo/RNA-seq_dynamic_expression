@@ -115,10 +115,40 @@ scz_genes <- scz_genes[ # reordering to avoid problems
   match(rownames(dge), scz_genes$GENE),
 ]
 
-logRPKM <- edgeR::rpkm(dge,
-                      gene.length = scz_genes$transcript_length,
-                      normalized.lib.size = TRUE, log = TRUE, prior.count = 1) # log and prior.count to avoid 0's problems
-logRPKM_reshaped <- as.data.frame(logRPKM) %>%
+# If we want to use normalized floating point counts, we want to log-transform
+#    and set prior.count to 1, avoiding 'zeros problems'
+# logRPKM <- edgeR::rpkm(
+#   dge,
+#   gene.length = scz_genes$transcript_length,
+#   normalized.lib.size = TRUE,
+#   log = TRUE,
+#   prior.count = 1
+# )
+# logRPKM_reshaped <- as.data.frame(logRPKM) %>%
+#   rownames_to_column("gene") %>%
+#   pivot_longer(
+#     cols = -gene,
+#     names_to = "sample",
+#     values_to = "expression"
+#   ) %>%
+#   tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
+#   left_join(
+#     sample_metadata %>%
+#       select("Braincode", "Days", "Sex", "Sequencing.Site"),
+#     by = c("subject" = "Braincode"),
+#   )
+
+# If we want to use integers, we set prior.count to 0 and set log = FALSE
+# Problem with this approach: these normalized pseudo-counts are not generated
+#   by a true negative binomial model as the raw counts are.
+int_RPKM <- edgeR::rpkm(
+  dge,
+  gene.length = scz_genes$transcript_length,
+  normalized.lib.size = TRUE,
+  log = FALSE,
+  prior.count = 0
+)
+int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
   rownames_to_column("gene") %>%
   pivot_longer(
     cols = -gene,
@@ -130,6 +160,9 @@ logRPKM_reshaped <- as.data.frame(logRPKM) %>%
     sample_metadata %>%
       select("Braincode", "Days", "Sex", "Sequencing.Site"),
     by = c("subject" = "Braincode"),
+  ) %>%
+  dplyr::mutate(
+    expression = as.integer(round(.data$expression))
   )
 
 inference_result <- rstanarm::stan_glmer(
@@ -139,7 +172,7 @@ inference_result <- rstanarm::stan_glmer(
     (1 | Sex) +
     (1 | subject) +
     (1 | Sequencing.Site),
-  data = logRPKM_reshaped,
+  data = int_RPKM_reshaped,  # logRPKM_reshaped,
   family = neg_binomial_2,
   chains = cores,
   cores = cores,
