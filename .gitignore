@@ -59,3 +59,4 @@ renv/
 *.txt
 *.sh
 *.out
+*.rds
