@@ -190,7 +190,7 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 #)
 
 inference_result <- lme4::glmer.nb(
-  expression ~ ns(Days, df = 4) + Sex + Sequencing.Site
+  expression ~ ns(Days, df = 4) + Sex + Sequencing.Site + # fixed effects
     (1 | gene) +
     (1 | area) +
     (1 | subject),
