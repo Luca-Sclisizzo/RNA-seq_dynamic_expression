@@ -32,6 +32,7 @@ suppressPackageStartupMessages({
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
+
 normalization_methods <- c("TMM", "RLE", "upperquartile", "none")
 if (! norm %in% normalization_methods) {
   stop(sprintf(
@@ -103,7 +104,7 @@ counts <- read.delim(
     Geneid, delim = "|", names = c("ensembl_gene_id", "gene.name")
   ) %>%
   tibble::column_to_rownames("ensembl_gene_id") %>%
-  select(
+  dplyr::select(
     names(.)[
       sapply(strsplit(names(.), "\\."), \(x)
              endsWith(x[2], "C") && x[2] != "CBC"
@@ -169,12 +170,13 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
   tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
   left_join(
     sample_metadata %>%
-      select("Braincode", "Days", "Sex", "Sequencing.Site"),
+      dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
     by = c("subject" = "Braincode"),
   ) %>%
   dplyr::mutate(
     expression = as.integer(round(.data$expression))
-  )
+  ) %>%
+  dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
 
 #inference_result <- rstanarm::stan_glmer(
 #  expression ~ ns(Days, df = 4) +
@@ -190,7 +192,7 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 #)
 
 inference_result <- lme4::glmer.nb(
-  expression ~ ns(Days, df = 4) + Sex + Sequencing.Site + # fixed effects
+  expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + # fixed effects
     (1 | gene) +
     (1 | area) +
     (1 | subject),
