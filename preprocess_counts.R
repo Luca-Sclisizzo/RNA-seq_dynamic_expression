@@ -11,6 +11,12 @@ for (p in pkgs) {
 Sys.unsetenv("BIOMART_HOST")
 Sys.unsetenv("ENSEMBL_MART_HOST")
 
+# Setting a single thread for all the computations to avoid issues with parallelization in rstanarm
+#Sys.setenv(OMP_NUM_THREADS = 1)
+#Sys.setenv(OPENBLAS_NUM_THREADS = 1)
+#Sys.setenv(MKL_NUM_THREADS = 1)
+
+
 suppressPackageStartupMessages({
   library("biomaRt")
   library("dplyr")
@@ -20,6 +26,7 @@ suppressPackageStartupMessages({
   library("splines")
   library("tibble")
   library("tidyr")
+  library("lme4")
 })
 
 # Parsing CLI arguments (normalization method and cores)
@@ -35,8 +42,9 @@ cores <- as.integer(args[2])
 if (is.na(cores)) {
   cores <- parallel::detectCores()
 }
-print(sprintf("Running in parallel over %d cores", cores))
-options(mc.cores = cores)
+#print(sprintf("Running in parallel over %d cores", cores))
+#options(mc.cores = cores)
+options(mc.cores = 1)
 
 # Loading files
 transcript_lengths_file <- "transcript_lengths.csv"
@@ -168,17 +176,30 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
     expression = as.integer(round(.data$expression))
   )
 
-inference_result <- rstanarm::stan_glmer(
-  expression ~ ns(Days, df = 4) +
+#inference_result <- rstanarm::stan_glmer(
+#  expression ~ ns(Days, df = 4) +
+#    (1 | gene) +
+#    (1 | area) +
+#    (1 | Sex) +
+#    (1 | subject) +
+#    (1 | Sequencing.Site),
+#  data = int_RPKM_reshaped,  # logRPKM_reshaped,
+#  family = neg_binomial_2,
+#  chains = min(4, cores),
+#  cores = cores,
+#)
+
+inference_result <- lme4::glmer.nb(
+  expression ~ ns(Days, df = 4) + Sex + Sequencing.Site
     (1 | gene) +
     (1 | area) +
-    (1 | Sex) +
-    (1 | subject) +
-    (1 | Sequencing.Site),
-  data = int_RPKM_reshaped,  # logRPKM_reshaped,
-  family = neg_binomial_2,
-  chains = min(4, cores),
-  cores = cores,
+    (1 | subject),
+  data = int_RPKM_reshaped,  # logRPKM_reshaped
+  verbose = TRUE,
+  control = glmerControl( # Trying to avoid convergence issues
+    optimizer = "bobyqa",
+    optCtrl = list(maxfun = 2e5)
+  )
 )
 saveRDS(
   object = inference_result,
@@ -188,7 +209,3 @@ saveRDS(
     ".rds"
   )
 )
-# ANNOTATIONS: la funzione edgeR::rpkm() tiene conto dell'appartenza ai gruppi, lasciamo cosí?
-# O lasciamo che la gerarchia sia presa totalmente dal modello gerarchico downstream?
-# Mi chiedevo se mettendo group nella normalizzazione edgeR prendesse parte della "varianza gerarchica"
-# should we take into account also the zero inflation for the model?

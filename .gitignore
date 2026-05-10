@@ -57,3 +57,5 @@ renv/
 # Excel and text files
 *.xlsx
 *.txt
+*.sh
+*.out
