@@ -153,13 +153,39 @@ scz_genes <- scz_genes[ # reordering to avoid problems
 # If we want to use integers, we set prior.count to 0 and set log = FALSE
 # Problem with this approach: these normalized pseudo-counts are not generated
 #   by a true negative binomial model as the raw counts are.
-int_RPKM <- edgeR::rpkm(
-  dge,
-  gene.length = scz_genes$transcript_length,
-  normalized.lib.size = TRUE,
-  log = FALSE,
-  prior.count = 0
-)
+# int_RPKM <- edgeR::rpkm(
+#   dge,
+#   gene.length = scz_genes$transcript_length,
+#   normalized.lib.size = TRUE,
+#   log = FALSE,
+#   prior.count = 0
+# )
+# int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
+#   rownames_to_column("gene") %>%
+#   pivot_longer(
+#     cols = -gene,
+#     names_to = "sample",
+#     values_to = "expression"
+#   ) %>%
+#   tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
+#   left_join(
+#     sample_metadata %>%
+#       dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
+#     by = c("subject" = "Braincode"),
+#   ) %>%
+#   dplyr::mutate(
+#     expression = as.integer(round(.data$expression))
+#   ) %>%
+#   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
+
+#### This section wants to try to use the raw counts and normalize in the model instead of using pseudocounts
+# The function edger::rpkm() was normalizing the data and giving us pseudocounts, which is not totally correct
+# The idea is tu use the library size and the gene lenght as exposure measures
+
+int_RPKM <- dge$counts
+normalization_factors <- dge$samples %>%
+  rownames_to_column("sample")
+
 int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
   rownames_to_column("gene") %>%
   pivot_longer(
@@ -167,6 +193,7 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
     names_to = "sample",
     values_to = "expression"
   ) %>%
+  left_join(normalization_factors, by= 'sample') %>%
   tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
   left_join(
     sample_metadata %>%
@@ -174,10 +201,11 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
     by = c("subject" = "Braincode"),
   ) %>%
   dplyr::mutate(
-    expression = as.integer(round(.data$expression))
+    expression = as.integer(.data$expression)
   ) %>%
   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
 
+# Bayesian inference
 #inference_result <- rstanarm::stan_glmer(
 #  expression ~ ns(Days, df = 4) +
 #    (1 | gene) +
@@ -191,6 +219,7 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 #  cores = cores,
 #)
 
+# Frequentist inference with pseudocounts
 inference_result <- lme4::glmer.nb(
   expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + # fixed effects
     (1 | gene) +
@@ -203,6 +232,9 @@ inference_result <- lme4::glmer.nb(
     optCtrl = list(maxfun = 2e5)
   )
 )
+
+
+
 saveRDS(
   object = inference_result,
   file = paste0(
