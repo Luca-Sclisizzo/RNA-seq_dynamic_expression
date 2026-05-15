@@ -37,18 +37,33 @@ pred <- ggpredict(
     Sequencing.Site = "YALE"
   )
 )
-
 plot(pred)
 
-pred <- lapply(norms, function(norm){
-  ggpredict(
-    models[[norm]],
-    terms = "Days [all]",
-    condition = c(
-      Sex = "M",
-      Sequencing.Site = "YALE"
+pred <- setNames(
+  lapply(norms, function(norm){
+    ggpredict(
+      models[[norm]],
+      terms = "Window [all]",
+      condition = c(
+        Sex = "M",
+        Sequencing.Site = "YALE"
+      )
     )
-  )
-  
+  }),
+  norms
+)
+
+lapply(norms, function(norm){
+  df <- as.data.frame(pred[[norm]])
+  plot <- ggplot(df, aes(x = x, y = predicted)) +
+          geom_line(linewidth = 1) +
+          geom_ribbon(
+            aes(ymin = conf.low, ymax = conf.high),
+            alpha = 0.2) +
+          labs(
+            title = paste("Norm:",norm),
+            x = "Window",
+            y = "Predicted value") +
+          theme_minimal()
+  print(plot)
 })
-                  
