@@ -32,7 +32,6 @@ suppressPackageStartupMessages({
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
-
 normalization_methods <- c("TMM", "RLE", "upperquartile", "none")
 if (! norm %in% normalization_methods) {
   stop(sprintf(
@@ -200,11 +199,14 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
       dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
     by = c("subject" = "Braincode"),
   ) %>%
-  dplyr::mutate(
-    expression = as.integer(.data$expression)
-  ) %>%
+  left_join(
+    scz_genes %>% select(GENE, transcript_length),
+    by = c('gene' = 'GENE')
+    ) %>%
+  mutate(transcript_length = transcript_length / 1000) %>% # transcript length in kb
   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
 
+##### Bayesian inference ##### 
 # Bayesian inference
 #inference_result <- rstanarm::stan_glmer(
 #  expression ~ ns(Days, df = 4) +
@@ -219,26 +221,46 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 #  cores = cores,
 #)
 
-# Frequentist inference with pseudocounts
+##### Frequentist inference ##### 
+# Model using pseudocounts (rpkm exctraction with edger::rpkm())
+# inference_result <- lme4::glmer.nb(
+#   expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + # fixed effects
+#     (1 | gene) +
+#     (1 | area) +
+#     (1 | subject),
+#   data = int_RPKM_reshaped,  # logRPKM_reshaped
+#   verbose = TRUE,
+#   control = glmerControl( # Trying to avoid convergence issues
+#     optimizer = "bobyqa",
+#     optCtrl = list(maxfun = 2e5)
+#   )
+# )
+
+# Model using raw counts and normalization as an osset
+# Two offsets has to be added:
+#  - library size (that is dependent on the biological sample)
+#  - Gene length
+
+# Rescaling the offset to help the convergence (otherwise the Hessian was singular)
+# See here for a wiki https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#convergence-warnings
+int_RPKM_reshaped$offset_scaled <- log(int_RPKM_reshaped$lib.size) - mean(log(int_RPKM_reshaped$lib.size))
+
 inference_result <- lme4::glmer.nb(
   expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + # fixed effects
-    (1 | gene) +
-    (1 | area) +
+    offset(offset_scaled) +
+    offset(log(transcript_length)) +
     (1 | subject),
   data = int_RPKM_reshaped,  # logRPKM_reshaped
   verbose = TRUE,
-  control = glmerControl( # Trying to avoid convergence issues
-    optimizer = "bobyqa",
-    optCtrl = list(maxfun = 2e5)
+  control = glmerControl( # this to avoid convergence issues
+  optimizer = "nlminbwrap",
+  optCtrl = list(maxfun = 2e5)
   )
 )
-
-
-
 saveRDS(
   object = inference_result,
   file = paste0(
-    "scz_expression_rstan_regression_",
+    "scz_expression_freq_regression_raw_counts_",
     norm,
     ".rds"
   )
