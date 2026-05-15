@@ -257,6 +257,8 @@ inference_result <- lme4::glmer.nb(
   optCtrl = list(maxfun = 2e5)
   )
 )
+
+print('Done fitting the model, now saving the results...')
 saveRDS(
   object = inference_result,
   file = paste0(
