@@ -20,9 +20,9 @@ models <- sapply(norms, function(norm) {
 
 base <- model.frame(models[[1]])
 newdata <- base[rep(1, 200), , drop = FALSE]
-newdata$Days <- seq(
-  min(sample_metadata$Days),
-  max(sample_metadata$Days),
+newdata$Window <- seq(
+  min(sample_metadata$Window),
+  max(sample_metadata$Window),
   length.out = 200
 )
 
@@ -30,8 +30,8 @@ newdata$Sex <- factor("M", levels = levels(sample_metadata$Sex))
 newdata$Sequencing.Site <- factor("YALE", levels = levels(sample_metadata$Sequencing.Site))
 
 pred <- ggpredict(
-  models[[3]],
-  terms = "Days [0:13000 by=100]",
+  models[[2]],
+  terms = "Window [all]",
   condition = c(
     Sex = "M",
     Sequencing.Site = "YALE"
