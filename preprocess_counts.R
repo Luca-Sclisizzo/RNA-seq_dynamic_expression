@@ -32,6 +32,8 @@ suppressPackageStartupMessages({
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
+norm <- 'TMM'
+
 normalization_methods <- c("TMM", "RLE", "upperquartile", "none")
 if (! norm %in% normalization_methods) {
   stop(sprintf(
@@ -152,39 +154,13 @@ scz_genes <- scz_genes[ # reordering to avoid problems
 # If we want to use integers, we set prior.count to 0 and set log = FALSE
 # Problem with this approach: these normalized pseudo-counts are not generated
 #   by a true negative binomial model as the raw counts are.
-# int_RPKM <- edgeR::rpkm(
-#   dge,
-#   gene.length = scz_genes$transcript_length,
-#   normalized.lib.size = TRUE,
-#   log = FALSE,
-#   prior.count = 0
-# )
-# int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
-#   rownames_to_column("gene") %>%
-#   pivot_longer(
-#     cols = -gene,
-#     names_to = "sample",
-#     values_to = "expression"
-#   ) %>%
-#   tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
-#   left_join(
-#     sample_metadata %>%
-#       dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
-#     by = c("subject" = "Braincode"),
-#   ) %>%
-#   dplyr::mutate(
-#     expression = as.integer(round(.data$expression))
-#   ) %>%
-#   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
-
-#### This section wants to try to use the raw counts and normalize in the model instead of using pseudocounts
-# The function edger::rpkm() was normalizing the data and giving us pseudocounts, which is not totally correct
-# The idea is tu use the library size and the gene lenght as exposure measures
-
-int_RPKM <- dge$counts
-normalization_factors <- dge$samples %>%
-  rownames_to_column("sample")
-
+int_RPKM <- edgeR::rpkm(
+  dge,
+  gene.length = scz_genes$transcript_length,
+  normalized.lib.size = TRUE,
+  log = FALSE,
+  prior.count = 0
+)
 int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
   rownames_to_column("gene") %>%
   pivot_longer(
@@ -192,34 +168,63 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
     names_to = "sample",
     values_to = "expression"
   ) %>%
-  left_join(normalization_factors, by= 'sample') %>%
   tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
   left_join(
     sample_metadata %>%
       dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
     by = c("subject" = "Braincode"),
   ) %>%
-  left_join(
-    scz_genes %>% select(GENE, transcript_length),
-    by = c('gene' = 'GENE')
-    ) %>%
-  mutate(transcript_length = transcript_length / 1000) %>% # transcript length in kb
+  dplyr::mutate(
+    expression = as.integer(round(.data$expression))
+  ) %>%
   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
+
+#### This section wants to try to use the raw counts and normalize in the model instead of using pseudocounts
+# The function edger::rpkm() was normalizing the data and giving us pseudocounts, which is not totally correct
+# The idea is to use the library size and the gene lenght as exposure measures
+# 
+# int_RPKM <- dge$counts
+# normalization_factors <- dge$samples %>%
+#   rownames_to_column("sample")
+# 
+# int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
+#   rownames_to_column("gene") %>%
+#   pivot_longer(
+#     cols = -gene,
+#     names_to = "sample",
+#     values_to = "expression"
+#   ) %>%
+#   left_join(normalization_factors, by= 'sample') %>%
+#   tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
+#   left_join(
+#     sample_metadata %>%
+#       dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
+#     by = c("subject" = "Braincode"),
+#   ) %>%
+#   left_join(
+#     scz_genes %>% select(GENE, transcript_length),
+#     by = c('gene' = 'GENE')
+#     ) %>%
+#   mutate(transcript_length = transcript_length / 1000) %>% # transcript length in kb
+#   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
 
 ##### Bayesian inference ##### 
 # Bayesian inference
-#inference_result <- rstanarm::stan_glmer(
-#  expression ~ ns(Days, df = 4) +
-#    (1 | gene) +
-#    (1 | area) +
-#    (1 | Sex) +
-#    (1 | subject) +
-#    (1 | Sequencing.Site),
-#  data = int_RPKM_reshaped,  # logRPKM_reshaped,
-#  family = neg_binomial_2,
-#  chains = min(4, cores),
-#  cores = cores,
-#)
+inference_result <- rstanarm::stan_glmer(
+  expression ~ ns(Days, df = 4) +
+    (1 | gene) +
+    (1 | area) +
+    (1 | Sex) +
+    (1 | subject) +
+    (1 | Sequencing.Site),
+  data = int_RPKM_reshaped,  # logRPKM_reshaped,
+  family = neg_binomial_2,
+  #chains = min(, cores),
+  #cores = 4,
+  #adapt_delta = 0.8, 
+  #control = list(max_treedepth =10),
+  algorithm = "meanfield"
+)
 
 ##### Frequentist inference ##### 
 # Model using pseudocounts (rpkm exctraction with edger::rpkm())
@@ -243,26 +248,26 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 
 # Rescaling the offset to help the convergence (otherwise the Hessian was singular)
 # See here for a wiki https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#convergence-warnings
-int_RPKM_reshaped$offset_scaled <- log(int_RPKM_reshaped$lib.size) - mean(log(int_RPKM_reshaped$lib.size))
-
-inference_result <- lme4::glmer.nb(
-  expression ~ bs(Window, df = 4) + Sex + Sequencing.Site + # fixed effects
-    offset(offset_scaled) +
-    offset(log(transcript_length)) +
-    (1 | subject),
-  data = int_RPKM_reshaped,  # logRPKM_reshaped
-  verbose = TRUE,
-  control = glmerControl( # this to avoid convergence issues
-  optimizer = "nlminbwrap",
-  optCtrl = list(maxfun = 2e5)
-  )
-)
+# int_RPKM_reshaped$offset_scaled <- log(int_RPKM_reshaped$lib.size) - mean(log(int_RPKM_reshaped$lib.size))
+# 
+# inference_result <- lme4::glmer.nb(
+#   expression ~ bs(Window, df = 4) + Sex + Sequencing.Site + # fixed effects
+#     offset(offset_scaled) +
+#     offset(log(transcript_length)) +
+#     (1 | subject),
+#   data = int_RPKM_reshaped,  # logRPKM_reshaped
+#   verbose = TRUE,
+#   control = glmerControl( # this to avoid convergence issues
+#   optimizer = "nlminbwrap",
+#   optCtrl = list(maxfun = 2e5)
+#   )
+# )
 
 print('Done fitting the model, now saving the results...')
 saveRDS(
   object = inference_result,
   file = paste0(
-    "scz_expression_freq_regression_raw_counts_",
+    "scz_expression_bayes_regression_meanfield_",
     norm,
     ".rds"
   )

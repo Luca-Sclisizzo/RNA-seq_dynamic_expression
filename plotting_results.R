@@ -17,7 +17,7 @@ sample_metadata <- read.csv(
 norms <- c('TMM', 'RLE', 'upperquartile')
 
 models <- sapply(norms, function(norm) { # Loading the results
-  readRDS(paste0("scz_expression_rstan_regression_", norm, ".rds"))
+  readRDS(paste0("scz_expression_freq_regression_raw_counts_", norm, ".rds"))
 })
 
 pred <- setNames(
