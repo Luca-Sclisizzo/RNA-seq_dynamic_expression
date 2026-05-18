@@ -211,12 +211,11 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 ##### Bayesian inference ##### 
 # Bayesian inference
 inference_result <- rstanarm::stan_glmer(
-  expression ~ ns(Days, df = 4) +
+  expression ~ ns(Days, df = 4) + Sequencing.Site
     (1 | gene) +
     (1 | area) +
     (1 | Sex) +
-    (1 | subject) +
-    (1 | Sequencing.Site),
+    (1 | subject),
   data = int_RPKM_reshaped,  # logRPKM_reshaped,
   family = neg_binomial_2,
   #chains = min(, cores),
