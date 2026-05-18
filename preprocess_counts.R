@@ -32,7 +32,6 @@ suppressPackageStartupMessages({
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
-norm <- 'TMM'
 
 normalization_methods <- c("TMM", "RLE", "upperquartile", "none")
 if (! norm %in% normalization_methods) {
