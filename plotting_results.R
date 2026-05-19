@@ -5,17 +5,11 @@ library('dplyr')
 library('splines')
 library('ggeffects')
 library('splineplot')
+library('bayesplot')
+library('loo')
 })
 
-sample_metadata <- read.csv(
-  "mRNA-seq_Sample metadata.csv",
-  sep = ';',
-  na.strings = c("NA", "")) %>%
-  filter(!is.na(Window)) %>%
-  filter(Ethnicity == 'European')
-
-norms <- c('TMM', 'RLE', 'upperquartile')
-
+##### Frequentist fit ##### 
 models <- sapply(norms, function(norm) { # Loading the results
   readRDS(paste0("scz_expression_freq_regression_raw_counts_", norm, ".rds"))
 })
@@ -51,3 +45,9 @@ invisible(
     print(plot)
   })
 )
+
+##### Bayesian fit ##### 
+TMM_meanfied_model <- readRDS('scz_expression_bayes_regression_meanfield_TMM.rds')
+loo_TMM <- loo(TMM_meanfied_model, save_psis = TRUE)
+plot(loo_TMM)
+rstan::get_stanmodel(TMM_meanfied_model$stanfit)
