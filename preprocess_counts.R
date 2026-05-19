@@ -27,6 +27,8 @@ suppressPackageStartupMessages({
   library("tibble")
   library("tidyr")
   library("lme4")
+  library("ggplot2")
+  library("glmpca")
 })
 
 # Parsing CLI arguments (normalization method and cores)
@@ -177,6 +179,39 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
     expression = as.integer(round(.data$expression))
   ) %>%
   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
+
+
+##### PCA for different age samples #####
+df_wide <- int_RPKM_reshaped %>%
+  mutate(sample = paste(subject, area, sep = ":")) %>%
+  select(sample, gene, expression) %>%
+  pivot_wider(names_from = gene, values_from = expression)
+
+# Matrice per PCA
+mat <- df_wide %>%
+  select(-sample) %>%
+  as.matrix()
+rownames(mat) <- df_wide$sample
+
+set.seed(100)
+gPCA <- glmpca(mat, L=2, fam = c('nb'))
+
+pca_df <- gPCA$loadings %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("sample") %>%
+  separate(sample, into = c("subject", "area"), sep = ":") %>%
+  select(subject, area, dim1, dim2) %>%
+  left_join(sample_metadata %>% select(Window, Braincode), by = c('subject' = 'Braincode')) 
+
+ggplot(pca_df, aes(x = dim1, y = dim2, color = Window)) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey80") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey80") +
+  labs(x = "dim1", y = "dim2", title = "Loadings subjects colored by age") +
+  theme_minimal()
+
+
+
 
 #### This section wants to try to use the raw counts and normalize in the model instead of using pseudocounts
 # The function edger::rpkm() was normalizing the data and giving us pseudocounts, which is not totally correct
