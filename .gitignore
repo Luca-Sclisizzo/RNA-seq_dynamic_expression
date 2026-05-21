@@ -60,3 +60,5 @@ renv/
 *.sh
 *.out
 *.rds
+*.Rmd
+*.html
