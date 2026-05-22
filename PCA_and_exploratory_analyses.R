@@ -257,7 +257,7 @@ for (norm in normalization_methods){
     geom_point(size = 2) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "grey80") +
     geom_vline(xintercept = 0, linetype = "dashed", color = "grey80") +
-    labs(x = "PC1", y = "PC1", title = norm) +
+    labs(x = "PC1", y = "PC2", title = norm) +
     theme(plot.title = element_text(hjust = 0.5, size = 10))
   theme_minimal()
 }
