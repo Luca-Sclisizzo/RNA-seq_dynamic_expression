@@ -152,18 +152,17 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
     by = c("subject" = "Braincode"),
   ) %>%
   dplyr::mutate(
-    expression = as.integer(round(.data$expression))
+    expression = as.integer(round(.data$expression)),
+    Sequencing.Site = as.factor(Sequencing.Site)
   ) %>%
   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
-
 
 ##### Bayesian inference ##### 
 # Bayesian inference
 inference_result <- rstanarm::stan_glmer(
-  expression ~ ns(Days, df = 4) + Sequencing.Site + Sex +
-    (1 | area) +
+  expression ~ ns(Days, df = 4) + Sequencing.Site + Sex + area
     (1 | subject),
-  data = int_RPKM_reshaped,  # logRPKM_reshaped,
+  data = int_RPKM_reshaped,
   family = neg_binomial_2,
   #chains = min(, cores),
   #cores = 4,
