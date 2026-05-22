@@ -22,7 +22,6 @@ suppressPackageStartupMessages({
   library("tidyr")
   library("lme4")
   library("ggplot2")
-  library("glmpca")
 })
 
 # Parsing CLI arguments (normalization method and cores)
