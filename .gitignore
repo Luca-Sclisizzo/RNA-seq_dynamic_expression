@@ -63,3 +63,4 @@ renv/
 *.Rmd
 *.html
 *.pdf
+*.png
