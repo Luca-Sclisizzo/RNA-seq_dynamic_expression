@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
-
+norm <- 'TMM'
 raw_counts <- FALSE # this is a switch between raw counts and pseudocounts
 if (raw_counts) {
   warning("raw_counts = TRUE: analyses will use raw counts, library size and gene lengths are used as offset in the NB")
@@ -152,14 +152,14 @@ if(raw_counts == FALSE){ # only if raw pseudocounts are selected
       by = c("subject" = "Braincode"),
     ) %>%
     dplyr::mutate(
-      expression = as.integer(round(.data$expression))
+      expression = as.integer(round(.data$expression)),
+      Sequencing.Site = as.factor(Sequencing.Site)
     ) %>%
     dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
   
   # Model using pseudocounts (rpkm exctraction with edger::rpkm())
   inference_result <- lme4::glmer.nb(
-    expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + # fixed effects
-      (1 | area) +
+    expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
       (1 | subject),
     data = int_RPKM_reshaped,  # logRPKM_reshaped
     verbose = TRUE,
@@ -169,6 +169,28 @@ if(raw_counts == FALSE){ # only if raw pseudocounts are selected
     )
   )
 }
+# newdata <- expand.grid(
+#   Window = seq(min(int_RPKM_reshaped$Window),
+#                max(int_RPKM_reshaped$Window),
+#                length.out = 200),
+#   Sex = "F",
+#   Sequencing.Site = 'YALE'
+# )
+# newdata$pred <- predict(inference_result,
+#                         newdata = newdata,
+#                         type = "response",
+#                         re.form = NA)
+# windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw",
+#                  "35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
+# 
+# 
+# ggplot(newdata, aes(x = Window, y = pred, group = 1)) +
+#   geom_line() +
+#   scale_x_continuous(
+#     breaks = seq_along(windownames),
+#     labels = windownames
+#   )
+
 ##### Frequentist inference - Raw Counts #####
 # This section wants to try to use the raw counts and normalize in the model instead of using pseudocounts
 # The function edger::rpkm() normalize the data and gives us pseudocounts, which is not totally correct
@@ -196,7 +218,9 @@ if(raw_counts == TRUE){ # only if raw counts are selected
       scz_genes %>% select(GENE, transcript_length),
       by = c('gene' = 'GENE')
       ) %>%
-    mutate(transcript_length = transcript_length / 1000) %>% # transcript length in kb
+    mutate(
+      transcript_length = transcript_length / 1000, # transcript length in kb
+      Sequencing.Site = as.factor(Sequencing.Site)) %>%
     dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
   
   # Model using raw counts and normalization as an offset
