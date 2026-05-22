@@ -21,6 +21,11 @@ The list of Schizophrenia genes is in the SCZ_genes.xlsx file.
 - Compare trajectories across normalization methods and modelling solutions 
 - Explore developmental transcriptomic patterns
 
+## Scripts description
+- PCA_and_exploratory_analyses.R wants to perform exploratory analyses and PCA to better understand the outcome of different normalization processes
+- Frequentist_approach.R performs hierarchical models in a traditional way, checking convergence problems and so on. This is necessary due to computational burden of bayesian samplings
+- Bayesian_approach.R performs bayesian hierarchical models
+- plotting_results.R plots the results of hierarchical models
 ## Notes
 This repository is intended for training and educational purposes.
 

@@ -8,16 +8,18 @@ library('splineplot')
 library('bayesplot')
 library('loo')
 })
+norms <- c('TMM','RLE','upperquartile')
 
 ##### Frequentist fit ##### 
 models <- sapply(norms, function(norm) { # Loading the results
-  readRDS(paste0("scz_expression_freq_regression_raw_counts_", norm, ".rds"))
+  readRDS(paste0("scz_expression_freq_regression_", norm, ".rds"))
 })
 
 pred <- setNames(
   lapply(norms, function(norm){
     ggpredict( # Using ggpredict to predict values from the model
       models[[norm]],
+      bias_correction = TRUE, # suggested by the package
       terms = "Window [all]",
       condition = c(
         Sex = "M",
@@ -48,6 +50,14 @@ invisible(
 
 ##### Bayesian fit ##### 
 TMM_meanfied_model <- readRDS('scz_expression_bayes_regression_meanfield_TMM.rds')
+posterior <- as.matrix(TMM_meanfied_model)
+posterior <- posterior[, startsWith(colnames(posterior), "ns")]
+colnames(posterior) <- c('1','2','3','4')
+
+mcmc_areas(posterior, pars = c('1','2','3','4'), prob = 0.80)
+
+
+
 loo_TMM <- loo(TMM_meanfied_model, save_psis = TRUE)
 plot(loo_TMM)
 rstan::get_stanmodel(TMM_meanfied_model$stanfit)
