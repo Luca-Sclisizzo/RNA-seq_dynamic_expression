@@ -7,6 +7,7 @@ library('ggeffects')
 library('splineplot')
 library('bayesplot')
 library('loo')
+library('rstanarm')
 })
 norms <- c('TMM','RLE','upperquartile')
 
@@ -54,8 +55,21 @@ posterior <- as.matrix(TMM_meanfied_model)
 posterior <- posterior[, startsWith(colnames(posterior), "ns")]
 colnames(posterior) <- c('1','2','3','4')
 
-mcmc_areas(posterior, pars = c('1','2','3','4'), prob = 0.80)
+posterior <- as.data.frame(TMM_meanfied_model)
+posterior <- draws[, startsWith(colnames(draws), "ns")]
+mcmc_intervals(posterior, prob = 0.80)
 
+
+
+colnames(ns_cols) <- c('1','2','3','4')
+
+
+
+
+mcmc_intervals(ns_cols, prob = 0.80)
+mcmc_areas(posterior,
+               prob = 0.50, prob_outer = 0.95,
+           pars = c('ns(Days, df = 4)1', 'ns(Days, df = 4)2', 'ns(Days, df = 4)3', 'ns(Days, df = 4)4'))
 
 
 loo_TMM <- loo(TMM_meanfied_model, save_psis = TRUE)
