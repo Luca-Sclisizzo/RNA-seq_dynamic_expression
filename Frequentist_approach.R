@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
-norm <- 'TMM'
+
 raw_counts <- FALSE # this is a switch between raw counts and pseudocounts
 if (raw_counts) {
   warning("raw_counts = TRUE: analyses will use raw counts, library size and gene lengths are used as offset in the NB")
