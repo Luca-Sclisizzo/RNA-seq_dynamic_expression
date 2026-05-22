@@ -94,6 +94,115 @@ counts <- read.delim(
     ]
   )
 
+##### Canonical PCA for QC #####
+plots_PC12 <- list() # PC1 and PC2
+plots_PC34 <- list() # PC3 and PC4
+for (norm in normalization_methods){
+  # group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
+  dge <- edgeR::DGEList(counts = counts) #, group = group)
+  keep <- edgeR::filterByExpr(dge)
+  dge <- dge[keep, , keep.lib.sizes=FALSE]
+  
+  # Normalize
+  cat('\nNormalizing with',norm,'...')
+  dge <- edgeR::calcNormFactors(dge, method = norm)
+  dge <- dge[rownames(dge) %in% scz_genes$GENE, ] # I have a drops of ~20 genes
+  # dge <- dge[, dge$samples$group %in% sample_metadata$Braincode] # Filtering only the EUR samples
+  
+  scz_genes <- scz_genes[ # reordering to avoid problems
+    match(rownames(dge), scz_genes$GENE),
+  ]
+  
+  # If we want to use integers, we set prior.count to 0 and set log = FALSE
+  # Problem with this approach: these normalized pseudo-counts are not generated
+  #   by a true negative binomial model as the raw counts are.
+  int_RPKM <- edgeR::rpkm(
+    dge,
+    gene.length = scz_genes$transcript_length,
+    normalized.lib.size = TRUE,
+    log = TRUE,
+    prior.count = 1
+  )
+  int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
+    rownames_to_column("gene") %>%
+    pivot_longer(
+      cols = -gene,
+      names_to = "sample",
+      values_to = "expression"
+    ) %>%
+    tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
+    left_join(
+      sample_metadata %>%
+        dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
+      by = c("subject" = "Braincode"),
+    ) %>%
+    dplyr::mutate(
+      expression = as.integer(round(.data$expression))
+    ) %>%
+    dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
+  
+  cat('\nStarting PCA analysis...')
+  # PCA for different age samples
+  df_wide <- int_RPKM_reshaped %>%
+    mutate(sample = paste(subject, area, sep = ":")) %>%
+    dplyr::select(sample, gene, expression) %>%
+    pivot_wider(names_from = gene, values_from = expression)
+  
+  # Matrix for PCA
+  mat <- df_wide %>%
+    dplyr::select(-sample) %>%
+    as.matrix()
+  rownames(mat) <- df_wide$sample
+  
+  pca <- prcomp(mat,center = TRUE,scale. = TRUE)
+  
+  pca_df <- pca$x[,1:4] %>% # Selecting only the first 4 PCs
+    as.data.frame() %>%
+    tibble::rownames_to_column("sample") %>%
+    separate(sample, into = c("subject", "area"), sep = ":") %>%
+    dplyr::select(subject, area, PC1, PC2, PC3, PC4) %>%
+    left_join(sample_metadata %>% dplyr::select(Window, Braincode), by = c('subject' = 'Braincode'))
+  
+  cat('\nSaving the ggplot object...')
+  plots_PC12[[norm]] <- ggplot(pca_df, aes(x = PC1, y = PC2, color = Window)) +
+    geom_point(size = 2) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "grey80") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "grey80") +
+    labs(x = "PC1", y = "PC2", title = norm) +
+    theme(plot.title = element_text(hjust = 0.5, size = 10)) +
+  theme_minimal()
+  
+  plots_PC34[[norm]] <- ggplot(pca_df, aes(x = PC3, y = PC4, color = Window)) +
+    geom_point(size = 2) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "grey80") +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "grey80") +
+    labs(x = "PC3", y = "PC4", title = norm) +
+    theme(plot.title = element_text(hjust = 0.5, size = 10)) +
+    theme_minimal()
+}
+
+
+invisible(
+  grid_plots_PC12 <- wrap_plots(plots_PC12, ncol = 2, nrow = 2) +
+    plot_layout(guides = "collect") +
+    plot_annotation(title = 'PC1 and PC2 - ROIs positions in the latent space colored by age') &
+    theme(
+      legend.position = "right",
+      plot.title = element_text(hjust = 0.5))
+)
+#print(grid_plots_PC12)
+
+
+invisible(
+  grid_plots_PC34 <- wrap_plots(plots_PC34, ncol = 2, nrow = 2) +
+    plot_layout(guides = "collect") +
+    plot_annotation(title = 'PC3 and PC4 - ROIs positions in the latent space colored by age') &
+    theme(
+      legend.position = "right",
+      plot.title = element_text(hjust = 0.5))
+)
+#print(grid_plots_PC34)
+
 ##### Generalized PCA for QC #####
 generalized_PCA <- FALSE
 if(generalized_PCA){
@@ -184,89 +293,3 @@ if(generalized_PCA){
   )
   print(grid_plots)
 }
-##### Canonical PCA for QC #####
-plots <- list()
-for (norm in normalization_methods){
-  # group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
-  dge <- edgeR::DGEList(counts = counts) #, group = group)
-  keep <- edgeR::filterByExpr(dge)
-  dge <- dge[keep, , keep.lib.sizes=FALSE]
-  
-  # Normalize
-  cat('\nNormalizing with',norm,'...')
-  dge <- edgeR::calcNormFactors(dge, method = norm)
-  dge <- dge[rownames(dge) %in% scz_genes$GENE, ] # I have a drops of ~20 genes
-  # dge <- dge[, dge$samples$group %in% sample_metadata$Braincode] # Filtering only the EUR samples
-  
-  scz_genes <- scz_genes[ # reordering to avoid problems
-    match(rownames(dge), scz_genes$GENE),
-  ]
-  
-  # If we want to use integers, we set prior.count to 0 and set log = FALSE
-  # Problem with this approach: these normalized pseudo-counts are not generated
-  #   by a true negative binomial model as the raw counts are.
-  int_RPKM <- edgeR::rpkm(
-    dge,
-    gene.length = scz_genes$transcript_length,
-    normalized.lib.size = TRUE,
-    log = TRUE,
-    prior.count = 1
-  )
-  int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
-    rownames_to_column("gene") %>%
-    pivot_longer(
-      cols = -gene,
-      names_to = "sample",
-      values_to = "expression"
-    ) %>%
-    tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
-    left_join(
-      sample_metadata %>%
-        dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
-      by = c("subject" = "Braincode"),
-    ) %>%
-    dplyr::mutate(
-      expression = as.integer(round(.data$expression))
-    ) %>%
-    dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
-  
-  cat('\nStarting PCA analysis...')
-  # PCA for different age samples
-  df_wide <- int_RPKM_reshaped %>%
-    mutate(sample = paste(subject, area, sep = ":")) %>%
-    dplyr::select(sample, gene, expression) %>%
-    pivot_wider(names_from = gene, values_from = expression)
-  
-  # Matrix for PCA
-  mat <- df_wide %>%
-    dplyr::select(-sample) %>%
-    as.matrix()
-  rownames(mat) <- df_wide$sample
-  
-  pca <- prcomp(mat,center = TRUE,scale. = TRUE)
-  
-  pca_df <- pca$x[,1:2] %>% # Selecting only the first 2 PCs
-    as.data.frame() %>%
-    tibble::rownames_to_column("sample") %>%
-    separate(sample, into = c("subject", "area"), sep = ":") %>%
-    dplyr::select(subject, area, PC1, PC2) %>%
-    left_join(sample_metadata %>% dplyr::select(Window, Braincode), by = c('subject' = 'Braincode'))
-  
-  cat('\nSaving the ggplot object...')
-  plots[[norm]] <- ggplot(pca_df, aes(x = PC1, y = PC2, color = Window)) +
-    geom_point(size = 2) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "grey80") +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "grey80") +
-    labs(x = "PC1", y = "PC2", title = norm) +
-    theme(plot.title = element_text(hjust = 0.5, size = 10))
-  theme_minimal()
-}
-invisible(
-  grid_plots <- wrap_plots(plots, ncol = 2, nrow = 2) +
-    plot_layout(guides = "collect") +
-    plot_annotation(title = 'PCA - ROIs positions in the latent space colored by age') &
-    theme(
-      legend.position = "right",
-      plot.title = element_text(hjust = 0.5))
-)
-print(grid_plots)
