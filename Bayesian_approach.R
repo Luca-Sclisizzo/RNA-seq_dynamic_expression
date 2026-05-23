@@ -168,7 +168,8 @@ inference_result <- rstanarm::stan_glmer(
   #cores = 4,
   #adapt_delta = 0.8, 
   #control = list(max_treedepth =10),
-  algorithm = "meanfield"
+  algorithm = "meanfield",
+  QR = TRUE
 )
 
 print('Done fitting the model, now saving the results...')
