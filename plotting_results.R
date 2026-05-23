@@ -124,3 +124,16 @@ TMM_meanfied_model %>%
            yrep = yrep,
            stat = count_zeros)
 
+# MCMC
+TMM_MCMC <- readRDS('scz_expression_bayes_regression_MCMC_TMM.rds')
+posterior <- as.data.frame(TMM_MCMC)
+posterior <- posterior[, startsWith(colnames(posterior), "ns")]
+mcmc_parcoord(posterior)
+
+mcmc_trace(posterior)
+
+
+
+
+
+
