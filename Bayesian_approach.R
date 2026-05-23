@@ -169,6 +169,8 @@ inference_result <- rstanarm::stan_glmer(
   adapt_delta = 0.8, # This is because rstanarm is more conservative than rstan, this is the rstan default value
   control = list(max_treedepth =10), # This is because rstanarm is more conservative than rstan, this is the rstan default value
   algorithm = "sampling",
+  iter = 3000,
+  warmup = 2000
 )
 
 print('Done fitting the model, now saving the results...')
