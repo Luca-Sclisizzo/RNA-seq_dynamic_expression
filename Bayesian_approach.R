@@ -161,7 +161,7 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 # Bayesian inference
 inference_result <- rstanarm::stan_glmer(
   expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
-    (1 | subject) + (1 | gene), # random effects
+    (1 | subject), # random effects
   data = int_RPKM_reshaped,
   family = neg_binomial_2,
   chains = min(4, cores),
