@@ -169,27 +169,6 @@ if(raw_counts == FALSE){ # only if raw pseudocounts are selected
     )
   )
 }
-# newdata <- expand.grid(
-#   Window = seq(min(int_RPKM_reshaped$Window),
-#                max(int_RPKM_reshaped$Window),
-#                length.out = 200),
-#   Sex = "F",
-#   Sequencing.Site = 'YALE'
-# )
-# newdata$pred <- predict(inference_result,
-#                         newdata = newdata,
-#                         type = "response",
-#                         re.form = NA)
-# windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw",
-#                  "35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
-# 
-# 
-# ggplot(newdata, aes(x = Window, y = pred, group = 1)) +
-#   geom_line() +
-#   scale_x_continuous(
-#     breaks = seq_along(windownames),
-#     labels = windownames
-#   )
 
 ##### Frequentist inference - Raw Counts #####
 # This section wants to try to use the raw counts and normalize in the model instead of using pseudocounts
