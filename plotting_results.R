@@ -7,9 +7,10 @@ library('ggeffects')
 library('splineplot')
 library('bayesplot')
 library('loo')
+library('tidyr')
 library('rstanarm')
 })
-norms <- c('TMM','RLE','upperquartile')
+norms <- c('TMM','RLE','upperquartile', 'none')
 
 
 ##### Frequentist fit ##### 
@@ -17,77 +18,79 @@ models <- sapply(norms, function(norm) { # Loading the results
   readRDS(paste0("scz_expression_freq_regression_", norm, ".rds"))
 })
 
+
+# Preparing a newdata df to predict on
 newdata <- expand.grid(
-  Window = seq(1,9,length.out = 200),
-  Sex = "F",
-  Sequencing.Site = 'YALE',
-  area = "PFC"
+  Window = seq(1, 9, length.out = 200),
+  Sex = factor("F",levels = levels(model.frame(models$TMM)$Sex)),
+  Sequencing.Site = factor("YALE",levels = levels(model.frame(models$TMM)$Sequencing.Site)),
+  area = factor("DFC",levels = levels(model.frame(models$TMM)$area)))
+# Predict
+for(norm in norms){
+  newdata[[paste0("pred_", norm)]] <- predict(
+    models[[norm]],
+    newdata = newdata,
+    type = "response",
+    re.form = NA
+  )
+} 
+newdata <- pivot_longer(
+  newdata,
+  cols = starts_with("pred_"),
+  names_to = "normalization",
+  values_to = "prediction"
 )
+newdata$normalization <- sub("pred_", "", newdata$normalization)
 
-pred <- setNames(
-  lapply(norms, function(norm){
-    newdata$pred <- predict(models[[norm]],
-                            newdata = newdata,
-                            type = "response",
-                            re.form = NA)
-}), norm
-)
+# Plotting
+windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw","35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
+
+trajecotry_plot_frequentist <- ggplot(
+  newdata,
+  aes(x = Window, y = prediction, color = normalization, group = normalization)
+) +
+  geom_line(linewidth = 0.6) +
+  scale_x_continuous(
+    breaks = seq(1:9),
+    labels = windownames
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.title = element_blank()
+  ) +
+  geom_vline(xintercept = 5, linetype = "dashed", col = "grey") +
+  labs(
+    x = "Developmental window",
+    y = "Predicted expression"
+  )
+print(trajecotry_plot_frequentist)
+
+fe <- fixef(models$TMM)
+ci <- confint(models$TMM, method = "Wald")
+ci_fe <- ci[names(fe), ]
+df_coef <- data.frame(
+  term = names(fe),
+  estimate = as.numeric(fe),
+  lower = ci_fe[,1],
+  upper = ci_fe[,2]
+) %>%
+  dplyr::filter(!grepl("ns\\(Window", term))
+
+
+ggplot(df_coef,
+       aes(x = reorder(term, estimate),
+           y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "", y = "Effect size (β)")
 
 
 
 
-windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw",
-                 "35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
-
-invisible(
-  lapply(norms, function(norm){ # Plotting in loop
-    df <- as.data.frame(pred[[norm]])
-    ggplot(df, aes(x = Window, y = pred, group = 1)) +
-      geom_line() +
-      scale_x_continuous(
-        breaks = seq_along(windownames),
-        labels = windownames
-      )
-  })
-)
-
-
-
-
-# pred <- setNames(
-#   lapply(norms, function(norm){
-#     ggpredict( # Using ggpredict to predict values from the model
-#       models[[norm]],
-#       bias_correction = TRUE, # suggested by the package
-#       terms = "Window [all]",
-#       condition = c(
-#         Sex = "M",
-#         Sequencing.Site = "YALE"
-#       )
-#     )
-#   }),
-#   norms
-# )
-# 
-# invisible(
-#   lapply(norms, function(norm){ # Plotting in loop
-#     df <- as.data.frame(pred[[norm]])
-#     plot <- ggplot(df, aes(x = x, y = predicted)) +
-#       geom_line(linewidth = 1) +
-#       geom_ribbon(
-#         aes(ymin = conf.low, ymax = conf.high),
-#         alpha = 0.2) +
-#       labs(
-#         title = paste("Norm:",norm),
-#         x = "Window",
-#         y = "Predicted value") +
-#       theme_minimal() +
-#       coord_cartesian(ylim = c(0, 15))
-#     print(plot)
-#   })
-# )
-
-##### Bayesian fit ##### 
+##### Bayesian fit #####
 TMM_meanfied_model <- readRDS('scz_expression_bayes_regression_meanfield_TMM.rds')
 posterior <- as.matrix(TMM_meanfied_model)
 posterior <- posterior[, startsWith(colnames(posterior), "ns")]
