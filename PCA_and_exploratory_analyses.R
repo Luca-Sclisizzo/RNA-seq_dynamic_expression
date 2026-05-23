@@ -97,6 +97,8 @@ counts <- read.delim(
 ##### Canonical PCA for QC #####
 plots_PC12 <- list() # PC1 and PC2
 plots_PC34 <- list() # PC3 and PC4
+
+varimax <- FALSE
 for (norm in normalization_methods){
   # group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
   dge <- edgeR::DGEList(counts = counts) #, group = group)
@@ -155,11 +157,20 @@ for (norm in normalization_methods){
   rownames(mat) <- df_wide$sample
   
   pca <- prcomp(mat,center = TRUE,scale. = TRUE)
-  
+  if(varimax == TRUE){ # Varimax rotation
+    rot <- varimax(pca$rotation) # Loadings
+    pca$rotation <- rot$loadings # Scores
+    pca$x <- as.matrix(pca$x) %*% rot$rotmat
+  }
   pca_df <- pca$x[,1:4] %>% # Selecting only the first 4 PCs
     as.data.frame() %>%
     tibble::rownames_to_column("sample") %>%
     separate(sample, into = c("subject", "area"), sep = ":") %>%
+    {
+      if (varimax) {
+        dplyr::rename(., PC1 = V1, PC2 = V2, PC3 = V3, PC4 = V4)
+      } else {.}
+    } %>%
     dplyr::select(subject, area, PC1, PC2, PC3, PC4) %>%
     left_join(sample_metadata %>% dplyr::select(Window, Braincode), by = c('subject' = 'Braincode'))
   
