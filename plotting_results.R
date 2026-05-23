@@ -14,7 +14,7 @@ norms <- c('TMM','RLE','upperquartile', 'none')
 
 
 ##### Frequentist fit ##### 
-models <- sapply(norms, function(norm) { # Loading the results
+models_freq <- sapply(norms, function(norm) { # Loading the results
   readRDS(paste0("scz_expression_freq_regression_", norm, ".rds"))
 })
 
@@ -22,13 +22,13 @@ models <- sapply(norms, function(norm) { # Loading the results
 # Preparing a newdata df to predict on
 newdata <- expand.grid(
   Window = seq(1, 9, length.out = 200),
-  Sex = factor("F",levels = levels(model.frame(models$TMM)$Sex)),
-  Sequencing.Site = factor("YALE",levels = levels(model.frame(models$TMM)$Sequencing.Site)),
-  area = factor("DFC",levels = levels(model.frame(models$TMM)$area)))
+  Sex = factor("F",levels = levels(model.frame(models_freq$TMM)$Sex)),
+  Sequencing.Site = factor("YALE",levels = levels(model.frame(models_freq$TMM)$Sequencing.Site)),
+  area = factor("DFC",levels = levels(model.frame(models_freq$TMM)$area)))
 # Predict
 for(norm in norms){
   newdata[[paste0("pred_", norm)]] <- predict(
-    models[[norm]],
+    models_freq[[norm]],
     newdata = newdata,
     type = "response",
     re.form = NA
@@ -66,8 +66,8 @@ trajecotry_plot_frequentist <- ggplot(
   )
 print(trajecotry_plot_frequentist)
 
-fe <- fixef(models$TMM)
-ci <- confint(models$TMM, method = "Wald")
+fe <- fixef(models_freq$TMM)
+ci <- confint(models_freq$TMM, method = "Wald")
 ci_fe <- ci[names(fe), ]
 df_coef <- data.frame(
   term = names(fe),
@@ -91,28 +91,36 @@ ggplot(df_coef,
 
 
 ##### Bayesian fit #####
+models_bayes <- sapply(norms, function(norm) { # Loading the results
+  readRDS(paste0("scz_expression_bayes_regression_meanfield_", norm, ".rds"))
+})
+
+
+
+
 TMM_meanfied_model <- readRDS('scz_expression_bayes_regression_meanfield_TMM.rds')
-posterior <- as.matrix(TMM_meanfied_model)
+posterior <- as.data.frame(TMM_meanfied_model)
 posterior <- posterior[, startsWith(colnames(posterior), "ns")]
 colnames(posterior) <- c('1','2','3','4')
 
 posterior <- as.data.frame(TMM_meanfied_model)
-posterior <- draws[, startsWith(colnames(draws), "ns")]
-mcmc_intervals(posterior, prob = 0.80)
+posterior <- posterior[, startsWith(colnames(posterior), "ns")]
+mcmc_areas(posterior, prob = 0.80)
+
+yrep <- posterior_predict(TMM_meanfied_model, draws = 500)
+ppc_dens_overlay(y = TMM_meanfied_model$y, 
+                 yrep = yrep)
 
 
+color_scheme_set("brightblue")
+TMM_meanfied_model %>%
+  ppc_stat(y = TMM_meanfied_model$y,
+                   yrep = yrep,
+                   stat = "median")
 
-colnames(ns_cols) <- c('1','2','3','4')
+count_zeros <- function(x) {sum(x == 0)}
+TMM_meanfied_model %>%
+  ppc_stat(y = TMM_meanfied_model$y,
+           yrep = yrep,
+           stat = count_zeros)
 
-
-
-
-mcmc_intervals(ns_cols, prob = 0.80)
-mcmc_areas(posterior,
-               prob = 0.50, prob_outer = 0.95,
-           pars = c('ns(Days, df = 4)1', 'ns(Days, df = 4)2', 'ns(Days, df = 4)3', 'ns(Days, df = 4)4'))
-
-
-loo_TMM <- loo(TMM_meanfied_model, save_psis = TRUE)
-plot(loo_TMM)
-rstan::get_stanmodel(TMM_meanfied_model$stanfit)
