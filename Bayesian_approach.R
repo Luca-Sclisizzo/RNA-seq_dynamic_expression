@@ -44,9 +44,9 @@ cores <- as.integer(args[2])
 if (is.na(cores)) {
   cores <- parallel::detectCores()
 }
-#print(sprintf("Running in parallel over %d cores", cores))
-#options(mc.cores = cores)
-options(mc.cores = 1)
+print(sprintf("Running in parallel over %d cores", cores))
+options(mc.cores = cores)
+#options(mc.cores = 1)
 
 # Loading files
 transcript_lengths_file <- "transcript_lengths.csv"
@@ -161,22 +161,21 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 # Bayesian inference
 inference_result <- rstanarm::stan_glmer(
   expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
-    (1 | subject),
+    (1 | subject) + (1 | gene), # random effects
   data = int_RPKM_reshaped,
   family = neg_binomial_2,
-  #chains = min(, cores),
-  #cores = 4,
-  #adapt_delta = 0.8, 
-  #control = list(max_treedepth =10),
-  algorithm = "meanfield",
-  QR = TRUE
+  chains = min(4, cores),
+  cores = cores,
+  adapt_delta = 0.8, # This is because rstanarm is more conservative than rstan, this is the rstan default value
+  control = list(max_treedepth =10), # This is because rstanarm is more conservative than rstan, this is the rstan default value
+  algorithm = "sampling",
 )
 
 print('Done fitting the model, now saving the results...')
 saveRDS(
   object = inference_result,
   file = paste0(
-    "scz_expression_bayes_regression_meanfield_",
+    "scz_expression_bayes_regression_MCMC_",
     norm,
     ".rds"
   )
