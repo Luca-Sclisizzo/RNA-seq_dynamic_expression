@@ -161,7 +161,7 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 # Bayesian inference
 inference_result <- rstanarm::stan_glmer(
   expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
-    (1 | subject) + (1 | gene), # random effects
+    (1 | subject), # random effects
   data = int_RPKM_reshaped,
   family = neg_binomial_2,
   chains = min(4, cores),
@@ -169,6 +169,8 @@ inference_result <- rstanarm::stan_glmer(
   adapt_delta = 0.8, # This is because rstanarm is more conservative than rstan, this is the rstan default value
   control = list(max_treedepth =10), # This is because rstanarm is more conservative than rstan, this is the rstan default value
   algorithm = "sampling",
+  iter = 3000,
+  warmup = 2000
 )
 
 print('Done fitting the model, now saving the results...')
