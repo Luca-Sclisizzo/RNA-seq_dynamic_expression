@@ -128,12 +128,15 @@ TMM_meanfied_model %>%
 TMM_MCMC <- readRDS('scz_expression_bayes_regression_MCMC_TMM.rds')
 posterior <- as.data.frame(TMM_MCMC)
 posterior <- posterior[, startsWith(colnames(posterior), "ns")]
-mcmc_parcoord(posterior)
+mcmc_parcoord(posterior, par = c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4'))
 
-mcmc_trace(posterior)
+mcmc_trace(posterior, 
+           par = c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4'),
+           facet_args = list(scales = "fixed"))
+mcmc_areas(posterior, 
+           par = c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4'))
 
 
-
-
+summary(TMM_MCMC)
 
 
