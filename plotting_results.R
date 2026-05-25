@@ -13,10 +13,10 @@ library('rstanarm')
 norms <- c('TMM','RLE','upperquartile', 'none')
 
 
-##### Frequentist fit ##### 
+##### Frequentist fit & plots ##### 
 models_freq <- sapply(norms, function(norm) { # Loading the results
   readRDS(paste0("scz_expression_freq_regression_", norm, ".rds"))
-})
+}, simplify = FALSE)
 
 
 # Preparing a newdata df to predict on
@@ -90,43 +90,40 @@ ggplot(df_coef,
 
 
 
-##### Bayesian fit #####
+##### Bayesian fit & plots #####
 models_bayes <- sapply(norms, function(norm) { # Loading the results
-  readRDS(paste0("scz_expression_bayes_regression_meanfield_", norm, ".rds"))
-})
+  readRDS(paste0("scz_expression_bayes_regression_MCMC_", norm, ".rds"))
+}, simplify = FALSE)
 
 
+# TMM_meanfied_model <- readRDS('scz_expression_bayes_regression_meanfield_TMM.rds')
+# posterior <- as.data.frame(TMM_meanfied_model)
+# posterior <- posterior[, startsWith(colnames(posterior), "ns")]
+# colnames(posterior) <- c('1','2','3','4')
+# 
+# posterior <- as.data.frame(TMM_meanfied_model)
+# posterior <- posterior[, startsWith(colnames(posterior), "ns")]
+# mcmc_areas(posterior, prob = 0.80)
+# 
+# yrep <- posterior_predict(TMM_meanfied_model, draws = 500)
+# ppc_dens_overlay(y = TMM_meanfied_model$y, 
+#                  yrep = yrep)
 
-
-TMM_meanfied_model <- readRDS('scz_expression_bayes_regression_meanfield_TMM.rds')
-posterior <- as.data.frame(TMM_meanfied_model)
-posterior <- posterior[, startsWith(colnames(posterior), "ns")]
-colnames(posterior) <- c('1','2','3','4')
-
-posterior <- as.data.frame(TMM_meanfied_model)
-posterior <- posterior[, startsWith(colnames(posterior), "ns")]
-mcmc_areas(posterior, prob = 0.80)
-
-yrep <- posterior_predict(TMM_meanfied_model, draws = 500)
-ppc_dens_overlay(y = TMM_meanfied_model$y, 
-                 yrep = yrep)
-
-
-color_scheme_set("brightblue")
-TMM_meanfied_model %>%
-  ppc_stat(y = TMM_meanfied_model$y,
-                   yrep = yrep,
-                   stat = "median")
-
-count_zeros <- function(x) {sum(x == 0)}
-TMM_meanfied_model %>%
-  ppc_stat(y = TMM_meanfied_model$y,
-           yrep = yrep,
-           stat = count_zeros)
+# 
+# color_scheme_set("brightblue")
+# TMM_meanfied_model %>%
+#   ppc_stat(y = TMM_meanfied_model$y,
+#                    yrep = yrep,
+#                    stat = "median")
+# 
+# count_zeros <- function(x) {sum(x == 0)}
+# TMM_meanfied_model %>%
+#   ppc_stat(y = TMM_meanfied_model$y,
+#            yrep = yrep,
+#            stat = count_zeros)
 
 # MCMC
-TMM_MCMC <- readRDS('scz_expression_bayes_regression_MCMC_TMM.rds')
-posterior <- as.data.frame(TMM_MCMC)
+posterior_TMM <- as.data.frame(models_bayes$TMM)
 posterior <- posterior[, startsWith(colnames(posterior), "ns")]
 mcmc_parcoord(posterior, par = c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4'))
 
@@ -135,7 +132,6 @@ mcmc_trace(posterior,
            facet_args = list(scales = "fixed"))
 mcmc_areas(posterior, 
            par = c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4'))
-
 
 summary(TMM_MCMC)
 
