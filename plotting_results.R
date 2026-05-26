@@ -12,8 +12,7 @@ library('rstanarm')
 })
 norms <- c('TMM','RLE','upperquartile', 'none')
 
-
-##### Frequentist fit & plots ##### 
+# Frequentist fit & plots -------------------------------------------------
 models_freq <- sapply(norms, function(norm) { # Loading the results
   readRDS(paste0("scz_expression_freq_regression_", norm, ".rds"))
 }, simplify = FALSE)
@@ -90,11 +89,54 @@ ggplot(df_coef,
 
 
 
-##### Bayesian fit & plots #####
+
+# Bayesian fit & plots ----------------------------------------------------
 models_bayes <- sapply(norms, function(norm) { # Loading the results
   readRDS(paste0("scz_expression_bayes_regression_MCMC_", norm, ".rds"))
 }, simplify = FALSE)
 
+posteriors_bayes <- sapply(norms, function(norm) { # Creating posteriors
+  assign(
+    paste0('posterior_',norm),
+    as.array(models_bayes[[norm]])
+    )
+}, simplify = FALSE)
+
+for (norm in norms) {
+  names(posteriors_bayes[[norm]])[2:5] <- paste0("spline_df", 1:4)
+}
+invisible(
+  lapply(norms, function(norm){
+    pars <- c('ns(Window, df = 4)1','ns(Window, df = 4)2','ns(Window, df = 4)3','ns(Window, df = 4)4')
+    title_results <- ggtitle(paste0('Resuls_',norm))
+    print(
+      mcmc_areas(posteriors_bayes[[norm]], 
+                 par = pars) + title_results
+    )
+    print(
+      mcmc_dens_overlay(posteriors_bayes[[norm]], 
+                        par = pars) + title_results
+    )
+  })
+)
+
+loo_activate <- FALSE
+if (!loo_activate) {
+  warning(
+    "LOO is disabled: Leave-One-Out will not be computed due to computational cost.\n",
+    "Set loo_activate <- TRUE to enable it."
+  )
+} else{
+  loo_bayes <- lapply(norms, function(norm) { # Creating posterior infomation criterias
+    loo(models_bayes[[norm]])
+  })
+  names(loo_bayes) <- paste0("loo_", norms)
+}
+
+
+
+
+# Old code ----------------------------------------------------------------
 
 # TMM_meanfied_model <- readRDS('scz_expression_bayes_regression_meanfield_TMM.rds')
 # posterior <- as.data.frame(TMM_meanfied_model)
@@ -121,18 +163,3 @@ models_bayes <- sapply(norms, function(norm) { # Loading the results
 #   ppc_stat(y = TMM_meanfied_model$y,
 #            yrep = yrep,
 #            stat = count_zeros)
-
-# MCMC
-posterior_TMM <- as.data.frame(models_bayes$TMM)
-posterior <- posterior[, startsWith(colnames(posterior), "ns")]
-mcmc_parcoord(posterior, par = c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4'))
-
-mcmc_trace(posterior, 
-           par = c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4'),
-           facet_args = list(scales = "fixed"))
-mcmc_areas(posterior, 
-           par = c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4'))
-
-summary(TMM_MCMC)
-
-
