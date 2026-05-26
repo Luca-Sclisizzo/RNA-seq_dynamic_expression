@@ -9,8 +9,10 @@ library('bayesplot')
 library('loo')
 library('tidyr')
 library('rstanarm')
+library('patchwork')
 })
 norms <- c('TMM','RLE','upperquartile', 'none')
+windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw","35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
 
 # Frequentist fit & plots -------------------------------------------------
 models_freq <- sapply(norms, function(norm) { # Loading the results
@@ -42,8 +44,6 @@ newdata <- pivot_longer(
 newdata$normalization <- sub("pred_", "", newdata$normalization)
 
 # Plotting
-windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw","35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
-
 trajecotry_plot_frequentist <- ggplot(
   newdata,
   aes(x = Window, y = prediction, color = normalization, group = normalization)
@@ -102,24 +102,30 @@ posteriors_bayes <- sapply(norms, function(norm) { # Creating posteriors
     )
 }, simplify = FALSE)
 
-for (norm in norms) {
+for (norm in norms) { # Renaming the spline coefficients
   names(posteriors_bayes[[norm]])[2:5] <- paste0("spline_df", 1:4)
 }
-invisible(
-  lapply(norms, function(norm){
-    pars <- c('ns(Window, df = 4)1','ns(Window, df = 4)2','ns(Window, df = 4)3','ns(Window, df = 4)4')
-    title_results <- ggtitle(paste0('Resuls_',norm))
-    print(
-      mcmc_areas(posteriors_bayes[[norm]], 
-                 par = pars) + title_results
-    )
-    print(
-      mcmc_dens_overlay(posteriors_bayes[[norm]], 
-                        par = pars) + title_results
-    )
-  })
-)
 
+### Creating posterior plots using Bayesplot
+mcmc_areas_plots <- list()
+mcmc_dens_overlay_plots <- list()
+
+for (norm in norms){
+  pars <- c('ns(Window, df = 4)1','ns(Window, df = 4)2','ns(Window, df = 4)3','ns(Window, df = 4)4')
+  
+  mcmc_areas_plots[[norm]] <- mcmc_areas(posteriors_bayes[[norm]], 
+                                         par = pars) + ggtitle(norm) + 
+                                        theme(plot.title = element_text(hjust = 0.5, size = 10))
+  mcmc_dens_overlay_plots[[norm]] <- mcmc_dens_overlay(posteriors_bayes[[norm]],
+                                                       par = pars) + ggtitle(norm) + 
+                                                      theme(plot.title = element_text(hjust = 0.5, size = 10))
+}
+wrap_plots(mcmc_areas_plots) + 
+  plot_annotation(title = 'Window posterior distributions',
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
+
+
+### Posterior predictive checks and model comparisons (eventually)
 loo_activate <- FALSE
 if (!loo_activate) {
   warning(
@@ -133,8 +139,71 @@ if (!loo_activate) {
   names(loo_bayes) <- paste0("loo_", norms)
 }
 
+### Trajectory plotting
+newdata_bayes <- expand.grid( # Creating a dataset of new values
+  Window = seq(1, 9, length.out = 200),
+  Sex = 'F',
+  Sequencing.Site = 'YALE',
+  area = 'DFC'
+  )
 
+Y_hat_list <- list()
+for (norm in norms){ # Using the posterior predictive on the 'holdout' data  
+  Y_hat <- posterior_epred(
+    models_bayes[[norm]],
+    newdata = newdata_bayes,
+    re.form = NA
+  )
+  Y_hat_list[[norm]] <- Y_hat
+}
+# Creating posterior predictive point estimates
+# I will summarize the posterior predictive using the median and 50% Credibility Interval (quantile 25% - 75%)
+summary_Y_pred_list <- lapply(Y_hat_list, function(Y_hat){
+  data.frame(
+    Y_med = apply(Y_hat, 2, median), # Median
+    Y_lb  = apply(Y_hat, 2, quantile, probs = 0.25), # Lower Bound (25%)
+    Y_ub  = apply(Y_hat, 2, quantile, probs = 0.75) # Upper Bound (75%)
+  )
+})
+for (norm in names(summary_Y_pred_list)) { # Adding the Posterior Predictive summaries to the newdata_bayes df
+  tmp <- summary_Y_pred_list[[norm]]
+  newdata_bayes[[paste0("Y_med_", norm)]] <- tmp$Y_med
+  newdata_bayes[[paste0("Y_lb_",  norm)]] <- tmp$Y_lb
+  newdata_bayes[[paste0("Y_ub_",  norm)]] <- tmp$Y_ub
+}
+newdata_bayes <- newdata_bayes %>% # Transforming the newdata_bayes to long in order to plot it
+  pivot_longer(
+    cols = matches("^Y_(med|lb|ub)_"),
+    names_to = c("stat", "norm"),
+    names_pattern = "Y_(med|lb|ub)_(.*)",
+    values_to = "value"
+  ) %>%
+  pivot_wider(
+    names_from = stat,
+    values_from = value
+  )
 
+# Plotting with ribbon
+trajectory_plot_bayesian <- ggplot(newdata_bayes, aes(x = Window, y = med, color = norm, fill = norm)) +
+  geom_ribbon(aes(ymin = lb, ymax = ub), alpha = 0.2, color = NA) + # Credibility interval 50%
+  geom_line(linewidth = 0.8) +
+  scale_x_continuous(
+    breaks = 1:9,
+    labels = windownames
+  ) +
+  theme_classic(base_size = 13) +
+  facet_wrap(~norm) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.title = element_blank()
+  ) +
+  geom_vline(xintercept = 5, linetype = "dashed", color = "grey") +
+  labs(
+    x = "Developmental window",
+    y = "Predicted expression (posterior median)",
+    caption = "Note: shaded regions represent 50% credible intervals (25–75% posterior quantiles)"
+  )
+print(trajectory_plot_bayesian)
 
 # Old code ----------------------------------------------------------------
 
