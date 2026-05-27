@@ -160,7 +160,7 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 ##### Bayesian inference ##### 
 # Bayesian inference
 inference_result <- rstanarm::stan_glmer(
-  expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
+  expression ~ ns(Window, df = 4) * gene + Sex + Sequencing.Site + area + # fixed effects
     (1 | subject), # random effects
   data = int_RPKM_reshaped,
   family = neg_binomial_2,
@@ -177,7 +177,7 @@ print('Done fitting the model, now saving the results...')
 saveRDS(
   object = inference_result,
   file = paste0(
-    "scz_expression_bayes_regression_MCMC_",
+    "scz_expression_bayes_regression_MCMC_gene_by_window_",
     norm,
     ".rds"
   )
