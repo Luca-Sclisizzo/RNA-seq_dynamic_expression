@@ -159,7 +159,7 @@ if(raw_counts == FALSE){ # only if raw pseudocounts are selected
   
   # Model using pseudocounts (rpkm exctraction with edger::rpkm())
   inference_result <- lme4::glmer.nb(
-    expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
+    expression ~ ns(Window, df = 4) * gene + Sex + Sequencing.Site + area + # fixed effects
       (1 | subject),
     data = int_RPKM_reshaped,  # logRPKM_reshaped
     verbose = TRUE,
@@ -229,7 +229,7 @@ print('Done fitting the model, now saving the results...')
 saveRDS(
   object = inference_result,
   file = paste0(
-    "scz_expression_freq_regression_",
+    "scz_expression_freq_regression_gene_by_window_",
     norm,
     ".rds"
   )
