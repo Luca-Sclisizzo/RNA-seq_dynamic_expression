@@ -212,7 +212,7 @@ if(raw_counts == TRUE){ # only if raw counts are selected
    int_RPKM_reshaped$offset_scaled <- log(int_RPKM_reshaped$lib.size) - mean(log(int_RPKM_reshaped$lib.size))
   
    inference_result <- lme4::glmer.nb(
-     expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + # fixed effects
+     expression ~ ns(Window, df = 4) * gene + Sex + Sequencing.Site + # fixed effects
        offset(offset_scaled) +
        offset(log(transcript_length)) +
        (1 | subject),
