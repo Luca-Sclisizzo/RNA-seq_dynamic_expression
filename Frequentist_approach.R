@@ -22,12 +22,13 @@ suppressPackageStartupMessages({
   library("tidyr")
   library("lme4")
   library("ggplot2")
+  library('glmmTMB')
 })
 
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
-
+norm <- 'TMM'
 raw_counts <- FALSE # this is a switch between raw counts and pseudocounts
 if (raw_counts) {
   warning("raw_counts = TRUE: analyses will use raw counts, library size and gene lengths are used as offset in the NB")
@@ -153,20 +154,28 @@ if(raw_counts == FALSE){ # only if raw pseudocounts are selected
     ) %>%
     dplyr::mutate(
       expression = as.integer(round(.data$expression)),
-      Sequencing.Site = as.factor(Sequencing.Site)
+      Sequencing.Site = as.factor(Sequencing.Site),
+      gene = as.factor(gene),
+      subject = as.factor(subject)
     ) %>%
     dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
   
   # Model using pseudocounts (rpkm exctraction with edger::rpkm())
-  inference_result <- lme4::glmer.nb(
-    expression ~ ns(Window, df = 4) * gene + Sex + Sequencing.Site + area + # fixed effects
+  # inference_result <- lme4::glmer.nb(
+  #   expression ~ ns(Window, df = 4) + gene + Sex + Sequencing.Site + area + # fixed effects
+  #     (1 | subject),
+  #   data = int_RPKM_reshaped,  # logRPKM_reshaped
+  #   verbose = TRUE,
+  #   control = glmerControl( # Trying to avoid convergence issues
+  #     optimizer = "bobyqa",
+  #     optCtrl = list(maxfun = 2e5)
+  #   )
+  # )
+  inference_result <- glmmTMB(
+    expression ~ ns(Window, df = 2) + gene + Sex + Sequencing.Site + area + # fixed effects
       (1 | subject),
-    data = int_RPKM_reshaped,  # logRPKM_reshaped
-    verbose = TRUE,
-    control = glmerControl( # Trying to avoid convergence issues
-      optimizer = "bobyqa",
-      optCtrl = list(maxfun = 2e5)
-    )
+    family = nbinom2,
+    data = int_RPKM_reshaped
   )
 }
 
