@@ -22,7 +22,7 @@ suppressPackageStartupMessages({
   library("tidyr")
   library("lme4")
   library("ggplot2")
-  library('glmmTMB')
+#  library('glmmTMB')
 })
 
 # Parsing CLI arguments (normalization method and cores)
@@ -161,23 +161,22 @@ if(raw_counts == FALSE){ # only if raw pseudocounts are selected
     dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
   
   # Model using pseudocounts (rpkm exctraction with edger::rpkm())
-  # inference_result <- lme4::glmer.nb(
-  #   expression ~ ns(Window, df = 4) + gene + Sex + Sequencing.Site + area + # fixed effects
-  #     (1 | subject),
-  #   data = int_RPKM_reshaped,  # logRPKM_reshaped
-  #   verbose = TRUE,
-  #   control = glmerControl( # Trying to avoid convergence issues
-  #     optimizer = "bobyqa",
-  #     optCtrl = list(maxfun = 2e5)
-  #   )
-  # )
-  inference_result <- glmmTMB(
-    expression ~ ns(Window, df = 2) + gene + Sex + Sequencing.Site + area + # fixed effects
-      (1 | subject),
-    family = nbinom2,
-    data = int_RPKM_reshaped
-  )
-}
+   inference_result <- lme4::glmer.nb(
+     expression ~ ns(Window, df = 4) + gene + Sex + Sequencing.Site + area + # fixed effects
+       (1 | subject),
+     data = int_RPKM_reshaped,  # logRPKM_reshaped
+     verbose = TRUE,
+     control = glmerControl( # Trying to avoid convergence issues
+       optimizer = "bobyqa"
+     )
+   )
+#  inference_result <- glmmTMB(
+#    expression ~ ns(Window, df = 2) + gene + Sex + Sequencing.Site + area + # fixed effects
+#      (1 | subject),
+#    family = nbinom2,
+#    data = int_RPKM_reshaped
+#  )
+#}
 
 ##### Frequentist inference - Raw Counts #####
 # This section wants to try to use the raw counts and normalize in the model instead of using pseudocounts
