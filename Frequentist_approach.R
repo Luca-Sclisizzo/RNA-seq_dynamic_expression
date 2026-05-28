@@ -161,6 +161,7 @@ if(raw_counts == FALSE){ # only if raw pseudocounts are selected
     dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
   
   # Model using pseudocounts (rpkm exctraction with edger::rpkm())
+  print("Fitting the model using pseudocounts...")
    inference_result <- lme4::glmer.nb(
      expression ~ ns(Window, df = 4) + gene + Sex + Sequencing.Site + area + # fixed effects
        (1 | subject),
@@ -218,7 +219,7 @@ if(raw_counts == TRUE){ # only if raw counts are selected
   # Rescaling the offset to help the convergence (otherwise the Hessian was singular)
   # See here for a wiki https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#convergence-warnings
    int_RPKM_reshaped$offset_scaled <- log(int_RPKM_reshaped$lib.size) - mean(log(int_RPKM_reshaped$lib.size))
-  
+  print("Fitting the model using raw counts and offsets...")
    inference_result <- lme4::glmer.nb(
      expression ~ ns(Window, df = 4) * gene + Sex + Sequencing.Site + # fixed effects
        offset(offset_scaled) +
