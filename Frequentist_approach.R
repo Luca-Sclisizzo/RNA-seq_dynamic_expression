@@ -176,7 +176,7 @@ if(raw_counts == FALSE){ # only if raw pseudocounts are selected
 #    family = nbinom2,
 #    data = int_RPKM_reshaped
 #  )
-#}
+}
 
 ##### Frequentist inference - Raw Counts #####
 # This section wants to try to use the raw counts and normalize in the model instead of using pseudocounts
