@@ -39,6 +39,7 @@ if (is.na(cores)) {
 print(sprintf("Running in parallel over %d cores", cores))
 options(mc.cores = cores)
 
+# RNA-seq preprocessing & data manipulation -------------------------------
 transcript_lengths_file <- "transcript_lengths.csv"
 scz_genes <- readxl::read_excel("SCZ_genes.xlsx")
 sample_metadata <- read.csv(
@@ -149,9 +150,27 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
 
 # Bayesian Inference with rstan -------------------------------------------
 model <- cmdstan_model("rstan_model.stan")
-fit <- mod$sample(
+
+B <- ns(int_RPKM_reshaped$Window, df = 4) # building the spline
+B <- scale(B)
+subject <- as.integer(factor(int_RPKM_reshaped$subject)) # Creating J groups 1..J-th
+
+stan_data <- list( # shaping the df as a list of parameters
+  N = nrow(int_RPKM_reshaped),
+  K = ncol(B),
+  S = length(unique(subject)),
+  
+  age = int_RPKM_reshaped$Window,
+  subject = subject, # Creating J groups 1..J-th
+  
+  B = B, # Spline
+  y = int_RPKM_reshaped$expression # RNA-seq
+)
+
+fit <- model$sample( # Fitting the model 
   data = stan_data,
   iter_sampling = 1000,
   iter_warmup = 1000,
-  chains = 4
+  chains = 4,
+  init = 0.5
 )

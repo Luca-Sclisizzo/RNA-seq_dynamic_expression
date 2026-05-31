@@ -10,19 +10,21 @@
 
 // The input data is a vector 'y' of length 'N'.
 data {
-  int<lower=1> N; // the df length
-  int<lower=1> K; // number of spline basis
-  int<lower=1> S; // number of subjects
+  int<lower=1> N;            // number of observations
+  int<lower=1> K;            // spline basis dimension
+  int<lower=1> S;            // number of subjects
 
   vector[N] age;
-  int<lower=1> subject[N]; // subject id
 
-  matrix[N, K] B;   // spline basis
+  array[N] int<lower=1> subject;  // subject ID (1..S)
 
-  int<lower=0> y[N]; // the expression values (Y)
+  matrix[N, K] B;            // spline basis
+
+  array[N] int<lower=0> y;   // counts (expression)
 }
 // The parameters accepted by the model
 parameters {
+  real alpha; // intercept of the spline
   vector[K] beta_spline;
   vector[S] z_subject; // standard normal (non-centered) - to solve the funnel structure
 
@@ -37,19 +39,21 @@ transformed parameters {
 // 'y' to be NB distributed
 model {
   // priors
-  beta_spline ~ normal(0, 2);
-  u_subject ~ normal(0, sigma_u); // subject-wise distribution
+  beta_spline ~ normal(0, 1);
   z_subject ~ normal(0, 1);     // prior on raw parameter
   sigma_u ~ normal(0, 1); // subject-wise dispersion parameter (the shrinkage)
   phi ~ exponential(1); // NB dispersion parameter
-
-  for (n in 1:N) {
-
-    real eta =
-      B[n] * beta_spline +
-      u_subject[subject[n]];
-
-    real mu = exp(eta);
-    y[n] ~ neg_binomial_2(mu, phi);
-  }
+  alpha ~ normal(0, 2); // spline's intercept
+  
+  vector[N] eta = alpha + B * beta_spline + u_subject[subject];
+  y ~ neg_binomial_2_log(eta, phi);
+  // for (n in 1:N) {
+  //   real eta =
+  //     alpha +
+  //     B[n] * beta_spline +
+  //     u_subject[subject[n]];
+  // 
+  //   real mu = exp(eta);
+  //   y[n] ~ neg_binomial_2(mu, phi);
+  // }
 }
