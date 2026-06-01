@@ -32,7 +32,8 @@ if (! norm %in% normalization_methods) {
     "Unknown or missing normalization method: '%s'", norm
   ))
 }
-cores <- as.integer(args[2])
+args <- commandArgs(trailingOnly = TRUE)
+cores <- as.integer(args[1])
 if (is.na(cores)) {
   cores <- parallel::detectCores()
 }
