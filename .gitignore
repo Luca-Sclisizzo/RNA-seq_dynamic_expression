@@ -72,3 +72,4 @@ renv/
 *.o
 *.so
 *.dll
+stan_model
