@@ -172,5 +172,17 @@ fit <- model$sample( # Fitting the model
   iter_sampling = 1000,
   iter_warmup = 1000,
   chains = 4,
+  parallel_chains = 4,
   init = 0.5
+)
+
+# Saving ------------------------------------------------------------------
+print('Done fitting the model, now saving the results...')
+saveRDS(
+  object = fit,
+  file = paste0(
+    "scz_expression_bayes_regression_rstan_",
+    norm,
+    ".rds"
+  )
 )
