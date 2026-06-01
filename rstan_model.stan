@@ -50,7 +50,7 @@ model {
   y ~ neg_binomial_2_log(eta, phi);
 }
 // Generate quantities: point likelihood for loo estimate after the fit
-generated_quantities {
+generated quantities {
   vector[N] log_lik;
   
   for (n in 1:N)
