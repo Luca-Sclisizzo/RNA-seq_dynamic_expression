@@ -149,6 +149,8 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
 
 # Bayesian Inference with rstan -------------------------------------------
+print("Fitting the model with rstan...\n")
+print("Compiling the model...")
 model <- cmdstan_model("rstan_model.stan")
 
 B <- ns(int_RPKM_reshaped$Window, df = 4) # building the spline
