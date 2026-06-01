@@ -65,3 +65,10 @@ renv/
 *.pdf
 *.png
 *bib
+*.out
+*.exe
+
+# R / RStan compiled objects
+*.o
+*.so
+*.dll
