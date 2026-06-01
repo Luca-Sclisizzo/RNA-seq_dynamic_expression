@@ -172,20 +172,18 @@ stan_data <- list( # shaping the df as a list of parameters
 
 fit <- model$sample( # Fitting the model 
   data = stan_data,
-  iter_sampling = 1000,
-  iter_warmup = 1000,
-  chains = 4,
+  iter_sampling = 100,
+  iter_warmup = 100,
+  chains = 1,
   parallel_chains = 4,
   init = 0.5
 )
 
 # Saving ------------------------------------------------------------------
 print('Done fitting the model, now saving the results...')
-saveRDS(
-  object = fit,
-  file = paste0(
+fit$save_object(
+  paste0(
     "scz_expression_bayes_regression_rstan_",
     norm,
     ".rds"
-  )
-)
+  ))

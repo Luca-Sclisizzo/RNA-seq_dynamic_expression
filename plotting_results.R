@@ -205,6 +205,14 @@ trajectory_plot_bayesian <- ggplot(newdata_bayes, aes(x = Window, y = med, color
   )
 print(trajectory_plot_bayesian)
 
+
+# rstan models ------------------------------------------------------------
+model_rstan <- readRDS('scz_expression_bayes_regression_rstan_TMM.rds')
+model_rstan$summary(variables = c("alpha", "beta_spline", "sigma_u", "phi", "u_subject"))
+
+
+
+
 # Old code ----------------------------------------------------------------
 
 # TMM_meanfied_model <- readRDS('scz_expression_bayes_regression_meanfield_TMM.rds')
