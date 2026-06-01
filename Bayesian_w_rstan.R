@@ -150,7 +150,7 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
   dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
 
 # Bayesian Inference with rstan -------------------------------------------
-print("Fitting the model with rstan...\n")
+print("Fitting the model with cmdstanr...")
 print("Compiling the model...")
 model <- cmdstan_model("rstan_model.stan")
 
@@ -172,9 +172,9 @@ stan_data <- list( # shaping the df as a list of parameters
 
 fit <- model$sample( # Fitting the model 
   data = stan_data,
-  iter_sampling = 100,
-  iter_warmup = 100,
-  chains = 1,
+  iter_sampling = 1000,
+  iter_warmup = 1000,
+  chains = 4,
   parallel_chains = 4,
   init = 0.5
 )
