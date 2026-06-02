@@ -209,6 +209,14 @@ print(trajectory_plot_bayesian)
 # rstan models ------------------------------------------------------------
 model_rstan <- readRDS('scz_expression_bayes_regression_rstan_TMM.rds')
 model_rstan$summary(variables = c("alpha", "beta_spline", "sigma_u", "phi", "u_subject"))
+print(model_rstan$diagnostic_summary())
+#pointwise_lik <- model_rstan$draws("log_lik", format = "matrix")
+#loo_model <- loo::loo(pointwise_lik)
+mcmc_areas(model_rstan$draws("beta_spline"), binwidth = 0.025) +
+  ggplot2::labs(subtitle = "Approximate posterior for spline")
+
+
+
 
 
 

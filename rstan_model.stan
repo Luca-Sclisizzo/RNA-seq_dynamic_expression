@@ -34,7 +34,6 @@ parameters {
 // Non centered parametrization to solve funnel structure
 transformed parameters {
   vector[S] u_subject = sigma_u * z_subject;  // building the subject-wise distribution using z_subject
-  //vector[N] eta = alpha + B * beta_spline + u_subject[subject]; // pointwise eta to use for the generated_quantities{} chunk
 }
 // The model to be estimated. We model the output
 // 'y' to be NB distributed
@@ -46,7 +45,7 @@ model {
   phi ~ exponential(1); // NB dispersion parameter
   alpha ~ normal(0, 2); // spline's intercept
   
-  vector[N] eta = alpha + B * beta_spline + u_subject[subject];
+  vector[N] eta = alpha + B * beta_spline + u_subject[subject]; // pointwise eta to use for the generated_quantities{} chunk
   y ~ neg_binomial_2_log(eta, phi);
 }
 // Generate quantities: point likelihood for loo estimate after the fit
