@@ -16,6 +16,7 @@ importance <- c('same') # choose between 'same', 'prenatal', 'postnatal'
 peak_prenatal <- rnorm(n = 1, mean = 3, sd = 0.2) # 3 is the value of the window for the 16PWC, it is generated from a hiherarchical prior
 peak_postnatal <- rnorm(n = 1, mean = 6.5, sd = 0.6) # 6.5 is a random postnatal expression, since it seems there's no key peak-timing for postnatal component, thus its sd might be larger than the prenatal_sd
 
+# Only pay attention on the sd: if it get's too large the hyperprior is noninformative and could give convergence issues
 
 # Three components: a linear component, and hit-one and hit-two components
 # The reasoning is an implementation of the two-hits hypothesis on SCZ with a source of 'error' in the biological theory (the linear component)
@@ -58,7 +59,7 @@ eta <- w_singolo[1]*f_growth +
 
 # plotting components and final trajectory in the eta space
 plot(x, eta, type = "l", lwd = 3,
-     main = "Latent mixture trajectory - prior", ylab = 'eta of the NB', xlab = 'Window', ylim = c(48,55))
+     main = "Latent mixture trajectory - prior", ylab = 'E[Y|X]', xlab = 'Window', ylim = c(48,55))
 
 lines(x, f_growth, col = "blue", lwd = 2) # linear component
 lines(x, f_prenatal, col = "red", lwd = 2) # prenatal component
