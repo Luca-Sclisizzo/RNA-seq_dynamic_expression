@@ -94,7 +94,8 @@ counts <- read.delim(
     ]
   )
 
-##### Canonical PCA for QC #####
+
+##### Canonical PCA & QC #####
 plots_PC12 <- list() # PC1 and PC2
 plots_PC34 <- list() # PC3 and PC4
 
@@ -122,8 +123,8 @@ for (norm in normalization_methods){
     dge,
     gene.length = scz_genes$transcript_length,
     normalized.lib.size = TRUE,
-    log = TRUE,
-    prior.count = 1
+    log = FALSE,
+    prior.count = 0
   )
   int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
     rownames_to_column("gene") %>%
@@ -139,12 +140,29 @@ for (norm in normalization_methods){
       by = c("subject" = "Braincode"),
     ) %>%
     dplyr::mutate(
-      expression = as.integer(round(.data$expression))
+      expression = as.integer(round(.data$expression)),
+      Sequencing.Site = as.factor(Sequencing.Site)
     ) %>%
     dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
   
-  cat('\nStarting PCA analysis...')
+  # Data QC
+  cat('\nRemoving lowly expressed genes...')
+  zero_rate <- int_RPKM_reshaped %>%
+    group_by(gene) %>%
+    summarise(prop_zero = mean(expression == 0))
+  counts_for_lowly_expressed <- int_RPKM_reshaped %>%
+    subset(gene %in% zero_rate[zero_rate$prop_zero >= 0.42,]$gene) # I chose .42 because the max expression was <8 and the 3rd quartile was 1
+  int_RPKM_reshaped <- int_RPKM_reshaped %>%
+    subset(!gene %in% counts_for_lowly_expressed$gene) # keep only the trustworthy genes
+  
+  if(norm == 'RLE'){ # assign the objects to the general env to plot the distribution on the markdown
+    assign("counts_for_lowly_expressed", counts_for_lowly_expressed, envir = .GlobalEnv)
+    assign("int_RPKM_reshaped", int_RPKM_reshaped, envir = .GlobalEnv)
+    assign("zero_rate", zero_rate, envir = .GlobalEnv)
+  }
+  
   # PCA for different age samples
+  cat('\nStarting PCA analysis...')
   df_wide <- int_RPKM_reshaped %>%
     mutate(sample = paste(subject, area, sep = ":")) %>%
     dplyr::select(sample, gene, expression) %>%
@@ -214,7 +232,24 @@ invisible(
 )
 #print(grid_plots_PC34)
 
-##### Generalized PCA for QC #####
+# zeroes_prop hist
+zero_rate <- zero_rate %>%
+  mutate(keep = ifelse(prop_zero <= .42, TRUE, FALSE))
+zero_counts_hist <- ggplot(zero_rate, aes(x = prop_zero, fill = keep)) +
+  geom_histogram(bins = 30, color = "black") +
+  geom_vline(xintercept = 0.42, linetype = "dashed", linewidth = 0.4) +
+  scale_fill_manual(values = c("FALSE" = "grey80", "TRUE" = "steelblue")) +
+  theme_minimal() +
+  labs(fill = "Keep gene")
+
+# distribution of the counts after QC
+expression_hist <- ggplot(int_RPKM_reshaped, aes(x = log(expression + 1))) +
+  geom_histogram(bins = 30, color = "black", fill = "steelblue") +
+  theme_minimal() +
+  labs(x = "log(expression + 1)", y = "Frequency")
+
+
+##### Generalized PCA #####
 generalized_PCA <- FALSE
 if(generalized_PCA){
   plots <- list()
@@ -258,9 +293,20 @@ if(generalized_PCA){
         by = c("subject" = "Braincode"),
       ) %>%
       dplyr::mutate(
-        expression = as.integer(round(.data$expression))
+        expression = as.integer(round(.data$expression)),
+        Sequencing.Site = as.factor(Sequencing.Site)
       ) %>%
       dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
+    
+    # Data QC
+    cat('\nRemoving lowly expressed genes...')
+    zero_rate <- int_RPKM_reshaped %>%
+      group_by(gene) %>%
+      summarise(prop_zero = mean(expression == 0))
+    counts_for_lowly_expressed <- int_RPKM_reshaped %>%
+      subset(gene %in% zero_rate[zero_rate$prop_zero >= 0.42,]$gene) # I chose .42 because the max expression was <8 and the 3rd quartile was 1
+    int_RPKM_reshaped <- int_RPKM_reshaped %>%
+      subset(!gene %in% counts_for_lowly_expressed$gene) # keep only the trustworthy genes
     
     cat('\nStarting PCA analysis...')
     # PCA for different age samples

@@ -95,17 +95,13 @@ models_bayes <- sapply(norms, function(norm) { # Loading the results
   readRDS(paste0("scz_expression_bayes_regression_MCMC_", norm, ".rds"))
 }, simplify = FALSE)
 
-posteriors_bayes <- sapply(norms, function(norm) { # Creating posteriors
-  assign(
-    paste0('posterior_',norm),
-    as.array(models_bayes[[norm]])
-    )
-}, simplify = FALSE)
-
-for (norm in norms) { # Renaming the spline coefficients
-  names(posteriors_bayes[[norm]])[2:5] <- paste0("spline_df", 1:4)
+posteriors_bayes <- lapply(norms, function(norm) {
+  as.array(models_bayes[[norm]])
+})
+names(posteriors_bayes) <- norms
+for (norm in norms) { # Renaming the spline coeffiecients names
+  dimnames(posteriors_bayes[[norm]])[[3]][2:5] <- paste0("spline_df", 1:4)
 }
-
 ### Creating posterior plots using Bayesplot
 mcmc_areas_plots <- list()
 mcmc_dens_overlay_plots <- list()
@@ -119,25 +115,13 @@ for (norm in norms){
   mcmc_dens_overlay_plots[[norm]] <- mcmc_dens_overlay(posteriors_bayes[[norm]],
                                                        par = pars) + ggtitle(norm) + 
                                                       theme(plot.title = element_text(hjust = 0.5, size = 10))
+  if (norm %in% c('RLE', 'none')){ # Removing y lables and ticks for the wrap
+    mcmc_areas_plots[[norm]] <- mcmc_areas_plots[[norm]] + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+  }
 }
 wrap_plots(mcmc_areas_plots) + 
   plot_annotation(title = 'Window posterior distributions',
                   theme = theme(plot.title = element_text(hjust = 0.5)))
-
-
-### Posterior predictive checks and model comparisons (eventually)
-loo_activate <- FALSE
-if (!loo_activate) {
-  warning(
-    "LOO is disabled: Leave-One-Out will not be computed due to computational cost.\n",
-    "Set loo_activate <- TRUE to enable it."
-  )
-} else{
-  loo_bayes <- lapply(norms, function(norm) { # Creating posterior infomation criterias
-    loo(models_bayes[[norm]])
-  })
-  names(loo_bayes) <- paste0("loo_", norms)
-}
 
 ### Trajectory plotting
 newdata_bayes <- expand.grid( # Creating a dataset of new values
@@ -183,7 +167,7 @@ newdata_bayes <- newdata_bayes %>% # Transforming the newdata_bayes to long in o
     values_from = value
   )
 
-# Plotting with ribbon
+# Plotting with ribbon (50% CI)
 trajectory_plot_bayesian <- ggplot(newdata_bayes, aes(x = Window, y = med, color = norm, fill = norm)) +
   geom_ribbon(aes(ymin = lb, ymax = ub), alpha = 0.2, color = NA) + # Credibility interval 50%
   geom_line(linewidth = 0.8) +
@@ -205,8 +189,35 @@ trajectory_plot_bayesian <- ggplot(newdata_bayes, aes(x = Window, y = med, color
   )
 print(trajectory_plot_bayesian)
 
+### Posterior predictive checks
+yrep_bayes <- setNames(
+  lapply(norms, function(norm){
+  yrep_bayes <- rstanarm::posterior_predict(models_bayes[[norm]], draws = 500)
+  }), norms)
+ppc_plots <- lapply(norms, function(norm) {
+  ppc_stat(
+    y = models_bayes[[norm]]$y,
+    yrep = yrep_bayes[[norm]],
+    stat = "median",
+    discrete = TRUE
+  )
+})
+names(ppc_plots) <- norms
+
+
+ppc_stat(
+  y = models_bayes[['TMM']]$y,
+  yrep = yrep_bayes[['TMM']],
+  stat = "sd",
+  discrete = TRUE
+)
+ppc_stat(models_bayes[['TMM']]$y, yrep_bayes[['TMM']], stat=function(x) sum(x==0))
+
+
 
 # rstan models ------------------------------------------------------------
+
+
 model_rstan <- readRDS('scz_expression_bayes_regression_rstan_TMM.rds')
 model_rstan$summary(variables = c("alpha", "beta_spline", "sigma_u", "phi", "u_subject"))
 print(model_rstan$diagnostic_summary())
@@ -217,6 +228,21 @@ mcmc_areas(model_rstan$draws("beta_spline"), binwidth = 0.025) +
 
 
 
+### Posterior predictive checks and model comparisons (eventually)
+# loo_activate <- FALSE
+# if (!loo_activate) {
+#   warning(
+#     "LOO is disabled: Leave-One-Out will not be computed due to computational cost.\n",
+#     "Set loo_activate <- TRUE to enable it."
+#   )
+# } else{
+#   cores <- 4 # Specified in case loo() needs to partial refit the model removing the influential observations
+#   loo_bayes <- lapply(norms, function(norm) { # Creating posterior infomation criterias
+#     loo(models_bayes[[norm]], k_threshold = 0.7)
+#   })
+#   names(loo_bayes) <- paste0("loo_", norms)
+# }
+# loo_compare <- loo::loo_compare(loo_bayes[["loo_TMM"]], loo_bayes[["loo_RLE"]], loo_bayes[["loo_upperquartile"]], loo_bayes[["loo_none"]])
 
 
 
@@ -232,19 +258,4 @@ mcmc_areas(model_rstan$draws("beta_spline"), binwidth = 0.025) +
 # posterior <- posterior[, startsWith(colnames(posterior), "ns")]
 # mcmc_areas(posterior, prob = 0.80)
 # 
-# yrep <- posterior_predict(TMM_meanfied_model, draws = 500)
-# ppc_dens_overlay(y = TMM_meanfied_model$y, 
-#                  yrep = yrep)
 
-# 
-# color_scheme_set("brightblue")
-# TMM_meanfied_model %>%
-#   ppc_stat(y = TMM_meanfied_model$y,
-#                    yrep = yrep,
-#                    stat = "median")
-# 
-# count_zeros <- function(x) {sum(x == 0)}
-# TMM_meanfied_model %>%
-#   ppc_stat(y = TMM_meanfied_model$y,
-#            yrep = yrep,
-#            stat = count_zeros)
