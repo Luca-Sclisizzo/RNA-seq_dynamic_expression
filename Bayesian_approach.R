@@ -34,13 +34,19 @@ suppressPackageStartupMessages({
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
-
 normalization_methods <- c("TMM", "RLE", "upperquartile", "none")
 if (! norm %in% normalization_methods) {
   stop(sprintf(
     "Unknown or missing normalization method: '%s'", norm
   ))
 }
+raw_counts <- TRUE # this is a switch between raw counts and pseudocounts
+if (raw_counts) {
+  warning("raw_counts = TRUE: analyses will use raw counts, library size and gene lengths are used as offset in the NB")
+} else {
+  warning("raw_counts = FALSE: analyses will use pseudocounts, no offsets added to the NB")
+}
+
 cores <- as.integer(args[2])
 if (is.na(cores)) {
   cores <- parallel::detectCores()
@@ -115,8 +121,8 @@ counts <- read.delim(
   )
 
 ##### Normalization factor for RNA-seq data ##### 
-# group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
-dge <- edgeR::DGEList(counts = counts) #, group = group)
+group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
+dge <- edgeR::DGEList(counts = counts, group = group)
 keep <- edgeR::filterByExpr(dge)
 dge <- dge[keep, , keep.lib.sizes=FALSE]
 
@@ -128,71 +134,142 @@ dge <- dge[rownames(dge) %in% scz_genes$GENE, ] # I have a drops of ~20 genes
 scz_genes <- scz_genes[ # reordering to avoid problems
   match(rownames(dge), scz_genes$GENE),
 ]
-
-# If we want to use integers, we set prior.count to 0 and set log = FALSE
-# Problem with this approach: these normalized pseudo-counts are not generated
-#   by a true negative binomial model as the raw counts are.
-int_RPKM <- edgeR::rpkm(
-  dge,
-  gene.length = scz_genes$transcript_length,
-  normalized.lib.size = TRUE,
-  log = FALSE,
-  prior.count = 0
-)
-int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
-  rownames_to_column("gene") %>%
-  pivot_longer(
-    cols = -gene,
-    names_to = "sample",
-    values_to = "expression"
-  ) %>%
-  tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
-  left_join(
-    sample_metadata %>%
-      dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
-    by = c("subject" = "Braincode"),
-  ) %>%
-  dplyr::mutate(
-    expression = as.integer(round(.data$expression)),
-    Sequencing.Site = as.factor(Sequencing.Site)
-  ) %>%
-  dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
-
-# data QC
-zero_rate <- int_RPKM_reshaped %>%
-  group_by(gene) %>%
-  summarise(prop_zero = mean(expression == 0))
-
-counts_for_lowly_expressed <- int_RPKM_reshaped %>%
-  subset(gene %in% zero_rate[zero_rate$prop_zero >= 0.42,]$gene) # I chose .42 because the max expression was <8 and the 3rd quartile was 1
-
-int_RPKM_reshaped <- int_RPKM_reshaped %>%
-  subset(!gene %in% counts_for_lowly_expressed$gene) # keep only the trustworthy genes
-hist(log(int_RPKM_reshaped$expression + 1))
-
-
-##### Bayesian inference ##### 
-# Bayesian inference
-inference_result <- rstanarm::stan_glmer(
-  expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
-    (1 | subject), # random effects
-  data = int_RPKM_reshaped,
-  family = neg_binomial_2,
-  chains = min(4, cores),
-  cores = cores,
-  adapt_delta = 0.8, # This is because rstanarm is more conservative than rstan, this is the rstan default value
-  control = list(max_treedepth =10), # This is because rstanarm is more conservative than rstan, this is the rstan default value
-  algorithm = "sampling",
-  iter = 3000,
-  warmup = 2000
-)
-
-print('Done fitting the model, now saving the results...')
-saveRDS(
-  object = inference_result,
-  file = paste0(
-    "scz_expression_bayes_regression_MCMC_gene_by_window_",
-    norm,
-    ".rds"
+##### Bayesian inference - pseudocounts ##### 
+if(raw_counts == FALSE){
+  # If we want to use integers, we set prior.count to 0 and set log = FALSE
+  # Problem with this approach: these normalized pseudo-counts are not generated
+  #   by a true negative binomial model as the raw counts are.
+  int_RPKM <- edgeR::rpkm(
+    dge,
+    gene.length = scz_genes$transcript_length,
+    normalized.lib.size = TRUE,
+    log = FALSE,
+    prior.count = 0
   )
-)
+  int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
+    rownames_to_column("gene") %>%
+    pivot_longer(
+      cols = -gene,
+      names_to = "sample",
+      values_to = "expression"
+    ) %>%
+    tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
+    left_join(
+      sample_metadata %>%
+        dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
+      by = c("subject" = "Braincode"),
+    ) %>%
+    dplyr::mutate(
+      expression = as.integer(round(.data$expression)),
+      across(c(Sex, area, subject, gene, Sequencing.Site), as.factor)
+    ) %>%
+    dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
+  
+  # data QC
+  # zero_rate <- int_RPKM_reshaped %>%
+  #   group_by(gene) %>%
+  #   summarise(prop_zero = mean(expression == 0))
+  # 
+  # counts_for_lowly_expressed <- int_RPKM_reshaped %>%
+  #   subset(gene %in% zero_rate[zero_rate$prop_zero >= 0.42,]$gene) # I chose .42 because the max expression was <8 and the 3rd quartile was 1
+  # 
+  # int_RPKM_reshaped <- int_RPKM_reshaped %>%
+  #   subset(!gene %in% counts_for_lowly_expressed$gene) # keep only the trustworthy genes
+  # hist(log(int_RPKM_reshaped$expression + 1))
+  
+  # Bayesian inference
+  inference_result <- rstanarm::stan_glmer(
+    expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
+      (1 | subject), # random effects
+    data = int_RPKM_reshaped,
+    family = neg_binomial_2,
+    chains = min(4, cores),
+    cores = cores,
+    adapt_delta = 0.8, # This is because rstanarm is more conservative than rstan, this is the rstan default value
+    control = list(max_treedepth =10), # This is because rstanarm is more conservative than rstan, this is the rstan default value
+    algorithm = "sampling",
+    iter = 3000,
+    warmup = 2000
+  )
+  print('Done fitting the model, now saving the results...')
+  saveRDS(
+    object = inference_result,
+    file = paste0(
+      "scz_expression_bayes_regression_MCMC_gene_by_window_",
+      norm,
+      ".rds"
+    )
+  )
+}
+
+##### Bayesian inference - Raw Counts #####
+# This section wants to try to use the raw counts and normalize in the model instead of using pseudocounts
+# The function edger::rpkm() normalize the data and gives us pseudocounts, which is not totally correct
+# The idea is to use the library size and the gene length as an exposure measure
+if(raw_counts == TRUE){ # only if raw counts are selected
+  int_RPKM <- dge$counts
+
+  normalization_factors <- dge$samples %>%
+    rownames_to_column("sample") %>%
+    mutate(offset = log(lib.size * norm.factors)) # this is the same than getOffset() function from edgeR
+  
+  int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
+    rownames_to_column("gene") %>%
+    pivot_longer(
+      cols = -gene,
+      names_to = "sample",
+      values_to = "expression"
+    ) %>%
+    left_join(normalization_factors, by= 'sample') %>%
+    tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
+    left_join(
+      sample_metadata %>%
+        dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
+      by = c("subject" = "Braincode"),
+    ) %>%
+    left_join(
+      scz_genes %>% select(GENE, transcript_length),
+      by = c('gene' = 'GENE')
+    ) %>%
+    mutate(
+      transcript_length = transcript_length / 1000, # transcript length in kb
+      expression = as.integer(round(.data$expression)),
+      across(c(Sex, area, subject, gene,Sequencing.Site), as.factor)
+      ) %>%
+    dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
+  
+  # Model using raw counts and normalization as an offset
+  # Two offsets has to be added:
+  #  - library size (that is dependent on the biological sample)
+  #  - Gene length
+  
+  # Rescaling the offset to help the convergence (otherwise the Hessian was singular)
+  # See here for a wiki https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#convergence-warnings
+  #int_RPKM_reshaped$offset_scaled <- log(int_RPKM_reshaped$lib.size) - mean(log(int_RPKM_reshaped$lib.size))
+  # Bayesian inference
+  inference_result <- rstanarm::stan_glmer(
+    expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
+      (1 | subject), # random effects
+    data = int_RPKM_reshaped,
+    family = neg_binomial_2,
+    offset = offset,
+    chains = min(4, cores),
+    cores = cores,
+    adapt_delta = 0.8, # This is because rstanarm is more conservative than rstan, this is the rstan default value
+    control = list(max_treedepth =10), # This is because rstanarm is more conservative than rstan, this is the rstan default value
+    algorithm = "sampling",
+    iter = 3000,
+    warmup = 2000
+  )
+  
+  print('Done fitting the model, now saving the results...')
+  saveRDS(
+    object = inference_result,
+    file = paste0(
+      "scz_expression_bayes_regression_MCMC_rawcounts_",
+      norm,
+      ".rds"
+    )
+  )
+}
+print('Done fitting and saving, job completed!')
