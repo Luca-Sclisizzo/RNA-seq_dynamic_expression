@@ -214,27 +214,22 @@ ppc_stat(
 ppc_stat(models_bayes[['TMM']]$y, yrep_bayes[['TMM']], stat=function(x) sum(x==0)) + ggtitle('sum of 0s')
 
 
-
 # rstan models ------------------------------------------------------------
-
-model <- readRDS('/Users/lucasclisizzo/Downloads/scz_expression_bayes_regression_MCMC_rawcounts_TMM.rds')
+model <- readRDS('/Users/lucasclisizzo/Downloads/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_TMM.rds')
 yrep_model <- rstanarm::posterior_predict(model, draws = 500)
 ppc_stat(
   y = model$y,
   yrep = yrep_model,
-  stat = "mean",
+  stat = "sd",
   discrete = TRUE
 )
-ppc_stat(model$y, yrep_model, stat = "median")
+ppc_stat(model$y, yrep_model, stat = "median", discrete = TRUE)
 ppc_stat(model$y, yrep_model, stat=function(x) sum(x==0)) + ggtitle('sum of 0s')
+mcmc_areas(model, par = pars) +
+  theme(plot.title = element_text(hjust = 0.5, size = 10))
 
-
-
-Y_hat <- posterior_epred(
-  model,
-  newdata = newdata_bayes,
-  re.form = NA
-)
+mcmc_dens_overlay(model,par = pars) +
+    theme(plot.title = element_text(hjust = 0.5, size = 10))
 
 
 
