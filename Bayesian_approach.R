@@ -34,7 +34,8 @@ suppressPackageStartupMessages({
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
-n_gene_to_fit <- args[3] # this will select the n-th gene based on the gene_variability score ranking
+n_gene_to_fit <- as.integer(args[3]) # this will select the n-th gene based on the gene_variability score ranking
+print(sprintf("Selected the %d-th gene based on the gene_variability score ranking from the gene_variability score.", n_gene_to_fit))
 normalization_methods <- c("TMM", "RLE", "upperquartile", "none")
 if (! norm %in% normalization_methods) {
   stop(sprintf(
