@@ -210,8 +210,8 @@ ppc_stat(
   yrep = yrep_bayes[['TMM']],
   stat = "median",
   discrete = TRUE
-)
-ppc_stat(models_bayes[['TMM']]$y, yrep_bayes[['TMM']], stat=function(x) sum(x==0))
+) + ggtitle('median')
+ppc_stat(models_bayes[['TMM']]$y, yrep_bayes[['TMM']], stat=function(x) sum(x==0)) + ggtitle('sum of 0s')
 
 
 
@@ -226,7 +226,7 @@ ppc_stat(
   discrete = TRUE
 )
 ppc_stat(model$y, yrep_model, stat = "median")
-ppc_stat(model$y, yrep_model, stat=function(x) sum(x==0))
+ppc_stat(model$y, yrep_model, stat=function(x) sum(x==0)) + ggtitle('sum of 0s')
 
 
 

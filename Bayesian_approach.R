@@ -34,6 +34,7 @@ suppressPackageStartupMessages({
 # Parsing CLI arguments (normalization method and cores)
 args <- commandArgs(trailingOnly = TRUE)
 norm <- args[1]
+n_gene_to_fit <- args[3] # this will select the n-th gene based on the gene_variability score ranking
 normalization_methods <- c("TMM", "RLE", "upperquartile", "none")
 if (! norm %in% normalization_methods) {
   stop(sprintf(
@@ -57,6 +58,7 @@ options(mc.cores = cores)
 
 # Loading files
 transcript_lengths_file <- "transcript_lengths.csv"
+gene_variability <- read.csv("gene_variability_score.csv") # this file contains the gene_wise score of var_between_window / var_within_window
 scz_genes <- readxl::read_excel("SCZ_genes.xlsx")
 sample_metadata <- read.csv(
   "mRNA-seq_Sample metadata.csv",
@@ -236,12 +238,11 @@ if(raw_counts == TRUE){ # only if raw counts are selected
       expression = as.integer(round(.data$expression)),
       across(c(Sex, area, subject, gene,Sequencing.Site), as.factor)
       ) %>%
-    dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
+    dplyr::filter(subject %in% sample_metadata$Braincode) %>% # Keep only the EUR samples
+    dplyr::filter(gene %in% gene_variability$gene[n_gene_to_fit]) # doing a single gene_wise model
   
   # Model using raw counts and normalization as an offset
-  # Two offsets has to be added:
-  #  - library size (that is dependent on the biological sample)
-  #  - Gene length
+  # The offset will be the edgeR offset: log(lib.size * norm_factor), it can be retreived with edgeR::getOffset(dge) function
   
   # Rescaling the offset to help the convergence (otherwise the Hessian was singular)
   # See here for a wiki https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#convergence-warnings
@@ -257,16 +258,16 @@ if(raw_counts == TRUE){ # only if raw counts are selected
     cores = cores,
     adapt_delta = 0.8, # This is because rstanarm is more conservative than rstan, this is the rstan default value
     control = list(max_treedepth =10), # This is because rstanarm is more conservative than rstan, this is the rstan default value
-    algorithm = "sampling",
-    iter = 3000,
-    warmup = 2000
+    algorithm = "sampling"#,
+    #iter = 1000,
+    #warmup = 2000
   )
   
   print('Done fitting the model, now saving the results...')
   saveRDS(
     object = inference_result,
     file = paste0(
-      "scz_expression_bayes_regression_MCMC_rawcounts_",
+      "scz_expression_bayes_regression_MCMC_rawcounts_single_gene_",
       norm,
       ".rds"
     )
