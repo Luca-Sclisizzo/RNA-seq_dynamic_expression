@@ -208,7 +208,7 @@ names(ppc_plots) <- norms
 ppc_stat(
   y = models_bayes[['TMM']]$y,
   yrep = yrep_bayes[['TMM']],
-  stat = "sd",
+  stat = "median",
   discrete = TRUE
 )
 ppc_stat(models_bayes[['TMM']]$y, yrep_bayes[['TMM']], stat=function(x) sum(x==0))
@@ -216,6 +216,26 @@ ppc_stat(models_bayes[['TMM']]$y, yrep_bayes[['TMM']], stat=function(x) sum(x==0
 
 
 # rstan models ------------------------------------------------------------
+
+model <- readRDS('/Users/lucasclisizzo/Downloads/scz_expression_bayes_regression_MCMC_rawcounts_TMM.rds')
+yrep_model <- rstanarm::posterior_predict(model, draws = 500)
+ppc_stat(
+  y = model$y,
+  yrep = yrep_model,
+  stat = "mean",
+  discrete = TRUE
+)
+ppc_stat(model$y, yrep_model, stat = "median")
+ppc_stat(model$y, yrep_model, stat=function(x) sum(x==0))
+
+
+
+Y_hat <- posterior_epred(
+  model,
+  newdata = newdata_bayes,
+  re.form = NA
+)
+
 
 
 model_rstan <- readRDS('scz_expression_bayes_regression_rstan_TMM.rds')
