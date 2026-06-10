@@ -269,6 +269,8 @@ if(raw_counts == TRUE){ # only if raw counts are selected
     object = inference_result,
     file = paste0(
       "scz_expression_bayes_regression_MCMC_rawcounts_single_gene_",
+      n_gene_to_fit,
+      "_th_gene_",
       norm,
       ".rds"
     )
