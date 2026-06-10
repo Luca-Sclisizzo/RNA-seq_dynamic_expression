@@ -10,6 +10,7 @@ library('loo')
 library('tidyr')
 library('rstanarm')
 library('patchwork')
+library('shiny')
 })
 norms <- c('TMM','RLE','upperquartile', 'none')
 windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw","35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
@@ -63,31 +64,28 @@ trajecotry_plot_frequentist <- ggplot(
     x = "Developmental window",
     y = "Predicted expression"
   )
-print(trajecotry_plot_frequentist)
-
-fe <- fixef(models_freq$TMM)
-ci <- confint(models_freq$TMM, method = "Wald")
-ci_fe <- ci[names(fe), ]
-df_coef <- data.frame(
-  term = names(fe),
-  estimate = as.numeric(fe),
-  lower = ci_fe[,1],
-  upper = ci_fe[,2]
-) %>%
-  dplyr::filter(!grepl("ns\\(Window", term))
-
-
-ggplot(df_coef,
-       aes(x = reorder(term, estimate),
-           y = estimate)) +
-  geom_point() +
-  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
-  coord_flip() +
-  theme_minimal() +
-  labs(x = "", y = "Effect size (β)")
-
-
-
+#print(trajecotry_plot_frequentist)
+# 
+# fe <- fixef(models_freq$TMM)
+# ci <- confint(models_freq$TMM, method = "Wald")
+# ci_fe <- ci[names(fe), ]
+# df_coef <- data.frame(
+#   term = names(fe),
+#   estimate = as.numeric(fe),
+#   lower = ci_fe[,1],
+#   upper = ci_fe[,2]
+# ) %>%
+#   dplyr::filter(!grepl("ns\\(Window", term))
+# 
+# 
+# ggplot(df_coef,
+#        aes(x = reorder(term, estimate),
+#            y = estimate)) +
+#   geom_point() +
+#   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
+#   coord_flip() +
+#   theme_minimal() +
+#   labs(x = "", y = "Effect size (β)")
 
 
 # Bayesian fit & plots ----------------------------------------------------
@@ -107,7 +105,7 @@ mcmc_areas_plots <- list()
 mcmc_dens_overlay_plots <- list()
 
 for (norm in norms){
-  pars <- c('ns(Window, df = 4)1','ns(Window, df = 4)2','ns(Window, df = 4)3','ns(Window, df = 4)4')
+  pars <- c('spline_df1','spline_df2','spline_df3','spline_df4')
   
   mcmc_areas_plots[[norm]] <- mcmc_areas(posteriors_bayes[[norm]], 
                                          par = pars) + ggtitle(norm) + 
@@ -119,9 +117,30 @@ for (norm in norms){
     mcmc_areas_plots[[norm]] <- mcmc_areas_plots[[norm]] + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
   }
 }
-wrap_plots(mcmc_areas_plots) + 
-  plot_annotation(title = 'Window posterior distributions',
-                  theme = theme(plot.title = element_text(hjust = 0.5)))
+# wrap_plots(mcmc_areas_plots) + 
+#   plot_annotation(title = 'Window posterior distributions',
+#                   theme = theme(plot.title = element_text(hjust = 0.5)))
+
+### Posterior predictive checks
+yrep_bayes <- setNames(
+  lapply(norms, function(norm){
+    yrep_bayes <- rstanarm::posterior_predict(models_bayes[[norm]], draws = 500)
+  }), norms)
+# ppc_plots <- lapply(norms, function(norm) {
+#   ppc_stat(
+#     y = models_bayes[[norm]]$y,
+#     yrep = yrep_bayes[[norm]],
+#     stat = "median",
+#     discrete = TRUE
+#   )
+# })
+# names(ppc_plots) <- norms
+median_PPC <-   ppc_stat(y = models_bayes[['TMM']]$y, yrep = yrep_bayes[['TMM']], stat = "median",discrete = TRUE) + ggtitle('mMdian') +
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sd_PPC <-   ppc_stat(y = models_bayes[['TMM']]$y, yrep = yrep_bayes[['TMM']], stat = "sd",discrete = TRUE) + ggtitle('Sd') +
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sum_0s <- ppc_stat(models_bayes[['TMM']]$y, yrep_bayes[['TMM']], stat=function(x) sum(x==0)) + ggtitle('Sum of 0s') + 
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 ### Trajectory plotting
 newdata_bayes <- expand.grid( # Creating a dataset of new values
@@ -187,60 +206,34 @@ trajectory_plot_bayesian <- ggplot(newdata_bayes, aes(x = Window, y = med, color
     y = "Predicted expression (posterior median)",
     caption = "Note: shaded regions represent 50% credible intervals (25–75% posterior quantiles)"
   )
-print(trajectory_plot_bayesian)
-
-### Posterior predictive checks
-yrep_bayes <- setNames(
-  lapply(norms, function(norm){
-  yrep_bayes <- rstanarm::posterior_predict(models_bayes[[norm]], draws = 500)
-  }), norms)
-ppc_plots <- lapply(norms, function(norm) {
-  ppc_stat(
-    y = models_bayes[[norm]]$y,
-    yrep = yrep_bayes[[norm]],
-    stat = "median",
-    discrete = TRUE
-  )
-})
-names(ppc_plots) <- norms
-
-
-ppc_stat(
-  y = models_bayes[['TMM']]$y,
-  yrep = yrep_bayes[['TMM']],
-  stat = "median",
-  discrete = TRUE
-) + ggtitle('median')
-ppc_stat(models_bayes[['TMM']]$y, yrep_bayes[['TMM']], stat=function(x) sum(x==0)) + ggtitle('sum of 0s')
-
+#print(trajectory_plot_bayesian)
 
 # rstan models ------------------------------------------------------------
-model <- readRDS('/Users/lucasclisizzo/Downloads/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_TMM.rds')
-yrep_model <- rstanarm::posterior_predict(model, draws = 500)
-ppc_stat(
-  y = model$y,
-  yrep = yrep_model,
-  stat = "sd",
-  discrete = TRUE
-)
-ppc_stat(model$y, yrep_model, stat = "median", discrete = TRUE)
-ppc_stat(model$y, yrep_model, stat=function(x) sum(x==0)) + ggtitle('sum of 0s')
-mcmc_areas(model, par = pars) +
-  theme(plot.title = element_text(hjust = 0.5, size = 10))
+model_single_gene_fist_score <- readRDS('/Users/lucasclisizzo/Downloads/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_TMM.rds')
+yrep_model_gene_first <- rstanarm::posterior_predict(model_single_gene_fist_score, draws = 500)
+median_single_fist_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sd_single_fist_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sum_0s_single_fist_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('sum of 0s') +
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
 
-mcmc_dens_overlay(model,par = pars) +
-    theme(plot.title = element_text(hjust = 0.5, size = 10))
+# mcmc_areas(model_single_gene_fist_score, par = pars) +
+#   theme(plot.title = element_text(hjust = 0.5, size = 10))
 
+# mcmc_dens_overlay(model_single_gene_fist_score,par = pars) +
+#     theme(plot.title = element_text(hjust = 0.5, size = 10))
 
 
-model_rstan <- readRDS('scz_expression_bayes_regression_rstan_TMM.rds')
-model_rstan$summary(variables = c("alpha", "beta_spline", "sigma_u", "phi", "u_subject"))
-print(model_rstan$diagnostic_summary())
-#pointwise_lik <- model_rstan$draws("log_lik", format = "matrix")
-#loo_model <- loo::loo(pointwise_lik)
-mcmc_areas(model_rstan$draws("beta_spline"), binwidth = 0.025) +
-  ggplot2::labs(subtitle = "Approximate posterior for spline")
 
+# model_rstan <- readRDS('scz_expression_bayes_regression_rstan_TMM.rds')
+# model_rstan$summary(variables = c("alpha", "beta_spline", "sigma_u", "phi", "u_subject"))
+# print(model_rstan$diagnostic_summary())
+# #pointwise_lik <- model_rstan$draws("log_lik", format = "matrix")
+# #loo_model <- loo::loo(pointwise_lik)
+# mcmc_areas(model_rstan$draws("beta_spline"), binwidth = 0.025) +
+#   ggplot2::labs(subtitle = "Approximate posterior for spline")
+# 
 
 
 ### Posterior predictive checks and model comparisons (eventually)
