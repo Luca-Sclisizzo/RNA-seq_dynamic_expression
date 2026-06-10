@@ -10,7 +10,6 @@ library('loo')
 library('tidyr')
 library('rstanarm')
 library('patchwork')
-library('shiny')
 })
 norms <- c('TMM','RLE','upperquartile', 'none')
 windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw","35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
@@ -88,7 +87,8 @@ trajecotry_plot_frequentist <- ggplot(
 #   labs(x = "", y = "Effect size (β)")
 
 
-# Bayesian fit & plots ----------------------------------------------------
+# Bayesian Complete pooling & plots ----------------------------------------------------
+#### Model with pseudocounts ####
 models_bayes <- sapply(norms, function(norm) { # Loading the results
   readRDS(paste0("scz_expression_bayes_regression_MCMC_", norm, ".rds"))
 }, simplify = FALSE)
@@ -117,9 +117,6 @@ for (norm in norms){
     mcmc_areas_plots[[norm]] <- mcmc_areas_plots[[norm]] + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
   }
 }
-# wrap_plots(mcmc_areas_plots) + 
-#   plot_annotation(title = 'Window posterior distributions',
-#                   theme = theme(plot.title = element_text(hjust = 0.5)))
 
 ### Posterior predictive checks
 yrep_bayes <- setNames(
@@ -135,12 +132,6 @@ yrep_bayes <- setNames(
 #   )
 # })
 # names(ppc_plots) <- norms
-median_PPC <-   ppc_stat(y = models_bayes[['TMM']]$y, yrep = yrep_bayes[['TMM']], stat = "median",discrete = TRUE) + ggtitle('mMdian') +
-  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sd_PPC <-   ppc_stat(y = models_bayes[['TMM']]$y, yrep = yrep_bayes[['TMM']], stat = "sd",discrete = TRUE) + ggtitle('Sd') +
-  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s <- ppc_stat(models_bayes[['TMM']]$y, yrep_bayes[['TMM']], stat=function(x) sum(x==0)) + ggtitle('Sum of 0s') + 
-  theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 ### Trajectory plotting
 newdata_bayes <- expand.grid( # Creating a dataset of new values
@@ -208,15 +199,39 @@ trajectory_plot_bayesian <- ggplot(newdata_bayes, aes(x = Window, y = med, color
   )
 #print(trajectory_plot_bayesian)
 
-# rstan models ------------------------------------------------------------
-model_single_gene_fist_score <- readRDS('/Users/lucasclisizzo/Downloads/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_TMM.rds')
-yrep_model_gene_first <- rstanarm::posterior_predict(model_single_gene_fist_score, draws = 500)
-median_single_fist_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+#### Model with RawCounts ####
+model_bayes_raw_counts_TMM <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_TMM.rds')
+yrep_bayes_raw_counts_TMM <- rstanarm::posterior_predict(model_bayes_raw_counts_TMM, draws = 500)
+median_PPC <-   ppc_stat(y = model_bayes_raw_counts_TMM$y, yrep = yrep_bayes_raw_counts_TMM, stat = "median",discrete = TRUE) + ggtitle('mMdian') +
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sd_single_fist_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+sd_PPC <-   ppc_stat(y = model_bayes_raw_counts_TMM$y, yrep = yrep_bayes_raw_counts_TMM, stat = "sd",discrete = TRUE) + ggtitle('Sd') +
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s_single_fist_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('sum of 0s') +
+sum_0s <- ppc_stat(model_bayes_raw_counts_TMM$y, yrep_bayes_raw_counts_TMM, stat=function(x) sum(x==0)) + ggtitle('Sum of 0s') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+# Single Gene Models & plots ------------------------------------------------------------
+# Single gene model: first gene as score
+model_single_gene_fist_score <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_TMM.rds')
+yrep_model_gene_first <- rstanarm::posterior_predict(model_single_gene_fist_score, draws = 500)
+median_single_first_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sd_single_first_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sum_0s_single_first_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('sum of 0s') +
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+# Single gene model: 50th gene as score
+model_single_gene_50_score <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_50_th_gene_TMM.rds')
+yrep_model_gene_50 <- rstanarm::posterior_predict(model_single_gene_50_score, draws = 500)
+median_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sd_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sum_0s_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('sum of 0s') +
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+
+
 
 # mcmc_areas(model_single_gene_fist_score, par = pars) +
 #   theme(plot.title = element_text(hjust = 0.5, size = 10))
@@ -236,7 +251,7 @@ sum_0s_single_fist_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_g
 # 
 
 
-### Posterior predictive checks and model comparisons (eventually)
+### Model comparison (eventually)
 # loo_activate <- FALSE
 # if (!loo_activate) {
 #   warning(
@@ -252,18 +267,4 @@ sum_0s_single_fist_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_g
 # }
 # loo_compare <- loo::loo_compare(loo_bayes[["loo_TMM"]], loo_bayes[["loo_RLE"]], loo_bayes[["loo_upperquartile"]], loo_bayes[["loo_none"]])
 
-
-
-
-# Old code ----------------------------------------------------------------
-
-# TMM_meanfied_model <- readRDS('scz_expression_bayes_regression_meanfield_TMM.rds')
-# posterior <- as.data.frame(TMM_meanfied_model)
-# posterior <- posterior[, startsWith(colnames(posterior), "ns")]
-# colnames(posterior) <- c('1','2','3','4')
-# 
-# posterior <- as.data.frame(TMM_meanfied_model)
-# posterior <- posterior[, startsWith(colnames(posterior), "ns")]
-# mcmc_areas(posterior, prob = 0.80)
-# 
 
