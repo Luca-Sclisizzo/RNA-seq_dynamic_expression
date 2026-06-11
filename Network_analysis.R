@@ -1,7 +1,3 @@
-if(!requireNamespace('BiocManager', quietly = TRUE))
-  install.packages('BiocManager')
-
-BiocManager::install("BioNERO")
 suppressPackageStartupMessages({
   library("biomaRt")
   library("dplyr")
@@ -15,6 +11,7 @@ suppressPackageStartupMessages({
   library("ggplot2")
   library("cmdstanr")
   library("BioNERO")
+  library("viridis")
 })
 set.seed(123)
 # The pipeline tutorial is available at https://bioconductor.org/packages//release/bioc/vignettes/BioNERO/inst/doc/vignette_01_GCN_inference.html#installation
@@ -49,13 +46,16 @@ power <- sft$power # power to use the next step
 net <- exp2gcn( # Network estimation
   counts_preprocessed, net_type = "signed hybrid", SFTpower = power, 
   cor_method = "pearson"
-)
-module_stability(counts_preprocessed, net, nRuns = 20) # Assessing module stability
+  )
+
+#module_stability(counts_preprocessed, net, nRuns = 20)  + scale_fill_viridis_d(option = "cividis") # Assessing module stability
 hubs <- get_hubs_gcn(counts_preprocessed, net) # Gene Hubs
 
-
 # Plotting ----------------------------------------------------------------
-plot_ngenes_per_module(net)
+net$genes_and_modules$Modules <- as.numeric(
+  factor(net$genes_and_modules$Modules)
+)
+plot_genes_module <- plot_ngenes_per_module(net)
 
 
 
