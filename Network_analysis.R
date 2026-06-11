@@ -59,4 +59,4 @@ gene_network_membership <- net$genes_and_modules %>%
   mutate(across(c(Modules, Genes), as.factor))
 plot_genes_module <- plot_ngenes_per_module(net)
 # Saving
-#write.csv(gene_network_membership, "gene_network_membership.csv")
+write.csv(gene_network_membership, "gene_network_membership.csv", row.names = FALSE)
