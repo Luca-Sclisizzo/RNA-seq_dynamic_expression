@@ -247,24 +247,22 @@ if(raw_counts == TRUE){ # only if raw counts are selected
     dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
 
   if (exists("n_gene_to_fit") && !is.null(n_gene_to_fit) && !is.na(n_gene_to_fit) && clusterwise_model == FALSE) {
-    warning(sprintf(
+    message(sprintf(
       "Selected the %d-th gene based on the gene_variability score ranking from the gene_variability score.",
       n_gene_to_fit
     ))
-    warning("A single gene model will be fitted!")
+    message("A single gene model will be fitted!")
     int_RPKM_reshaped <- int_RPKM_reshaped %>% 
       dplyr::filter(gene %in% gene_variability$gene[n_gene_to_fit])
   } else if (exists("n_gene_to_fit") && !is.null(n_gene_to_fit) && !is.na(n_gene_to_fit) && clusterwise_model == TRUE) {
     stop("clusterwise_model = TRUE & n_gene_to_fit specified. Impossible to perform a clusterwise model on a single gene.")
+  } else if(clusterwise_model == TRUE){
+      message("Clusterwise model will be perfomed. Adding cluster informations...")
+      int_RPKM_reshaped <- int_RPKM_reshaped %>% 
+        dplyr::left_join(gene_network_membership, by = c('gene' = 'Genes')) %>%
+        subset(!is.na(Modules)) %>% # removing the genes that do not cluster to any group
+        mutate(Modules = as.factor(Modules)) # set it as a factor
   }
-  if(!exists("n_gene_to_fit") && clusterwise_model == TRUE){
-    warning("Clusterwise model will be perfomed. Adding cluster informations...")
-    int_RPKM_reshaped <- int_RPKM_reshaped %>% 
-      dplyr::left_join(gene_network_membership, by = c('gene' = 'Genes')) %>%
-      subset(!is.na(Modules)) %>% # removing the genes that do not cluster to any group
-      mutate(Modules = as.factor(Modules)) # set it as a factor
-  }
-  
   # Model using raw counts and normalization as an offset
   # The offset will be the edgeR offset: log(lib.size * norm_factor), it can be retreived with edgeR::getOffset(dge) function
   # Bayesian inference
@@ -295,6 +293,7 @@ if(raw_counts == TRUE){ # only if raw counts are selected
       )
     )
   } else { # Clusterwise bayesian inference
+  print("Clusterwise model selected, fitting the model with a partial pooling across clusters...")
     inference_result <- rstanarm::stan_glmer(
       expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
         (1 | subject) + (1 | Modules), # random effects
