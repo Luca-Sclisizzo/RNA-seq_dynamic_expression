@@ -44,7 +44,7 @@ if (! norm %in% normalization_methods) {
 clusterwise_model <- TRUE
 raw_counts <- TRUE # this is a switch between raw counts and pseudocounts
 if (raw_counts) {
-  warning("raw_counts = TRUE: analyses will use raw counts, library size and gene lengths are used as offset in the NB")
+  warning("raw_counts = TRUE: analyses will use raw counts, library size and library composition are used as offset in the NB")
   if(clusterwise_model){
     warning("clusterwise_model = TRUE: model will use a partial pooling across clusters")
   }
@@ -246,7 +246,7 @@ if(raw_counts == TRUE){ # only if raw counts are selected
       ) %>%
     dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
 
-  if (!is.null(n_gene_to_fit) && !is.na(n_gene_to_fit) && clusterwise_model == FALSE) {
+  if (exists("n_gene_to_fit") && !is.null(n_gene_to_fit) && !is.na(n_gene_to_fit) && clusterwise_model == FALSE) {
     warning(sprintf(
       "Selected the %d-th gene based on the gene_variability score ranking from the gene_variability score.",
       n_gene_to_fit
@@ -254,10 +254,11 @@ if(raw_counts == TRUE){ # only if raw counts are selected
     warning("A single gene model will be fitted!")
     int_RPKM_reshaped <- int_RPKM_reshaped %>% 
       dplyr::filter(gene %in% gene_variability$gene[n_gene_to_fit])
-  } else if (!is.null(n_gene_to_fit) && !is.na(n_gene_to_fit) && clusterwise_model == TRUE) {
+  } else if (exists("n_gene_to_fit") && !is.null(n_gene_to_fit) && !is.na(n_gene_to_fit) && clusterwise_model == TRUE) {
     stop("clusterwise_model = TRUE & n_gene_to_fit specified. Impossible to perform a clusterwise model on a single gene.")
   }
-  if(clusterwise_model == TRUE){
+  if(!exists("n_gene_to_fit") && clusterwise_model == TRUE){
+    warning("Clusterwise model will be perfomed. Adding cluster informations...")
     int_RPKM_reshaped <- int_RPKM_reshaped %>% 
       dplyr::left_join(gene_network_membership, by = c('gene' = 'Genes')) %>%
       subset(!is.na(Modules)) %>% # removing the genes that do not cluster to any group
@@ -282,6 +283,17 @@ if(raw_counts == TRUE){ # only if raw counts are selected
       #iter = 1000,
       #warmup = 2000
     )
+    print('Done fitting the model, now saving the results...')
+    saveRDS(
+      object = inference_result,
+      file = paste0(
+        "scz_expression_bayes_regression_MCMC_rawcounts_single_gene_",
+        n_gene_to_fit,
+        "_th_gene_",
+        norm,
+        ".rds"
+      )
+    )
   } else { # Clusterwise bayesian inference
     inference_result <- rstanarm::stan_glmer(
       expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
@@ -297,17 +309,15 @@ if(raw_counts == TRUE){ # only if raw counts are selected
       #iter = 1000,
       #warmup = 2000
     )
-  }
-  print('Done fitting the model, now saving the results...')
-  saveRDS(
-    object = inference_result,
-    file = paste0(
-      "scz_expression_bayes_regression_MCMC_rawcounts_single_gene_",
-      n_gene_to_fit,
-      "_th_gene_",
-      norm,
-      ".rds"
+    print('Done fitting the model, now saving the results...')
+    saveRDS(
+      object = inference_result,
+      file = paste0(
+        "scz_expression_bayes_regression_MCMC_rawcounts_clusterwise_",
+        norm,
+        ".rds"
+      )
     )
-  )
+  }
 }
 print('Done fitting and saving, job completed!')
