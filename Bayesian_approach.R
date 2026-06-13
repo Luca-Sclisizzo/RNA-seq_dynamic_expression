@@ -295,8 +295,8 @@ if(raw_counts == TRUE){ # only if raw counts are selected
   } else { # Clusterwise bayesian inference
   print("Clusterwise model selected, fitting the model with a partial pooling across clusters...")
     inference_result <- rstanarm::stan_glmer(
-      expression ~ ns(Window, df = 4) + Sex + Sequencing.Site + area + # fixed effects
-        (1 | subject) + (1 | Modules), # random effects
+      expression ~ ns(Window, df=4) * Modules + Sex + Sequencing.Site + area + # fixed effects
+        (1 | subject), # random effects
       data = int_RPKM_reshaped,
       family = neg_binomial_2,
       offset = offset,
@@ -312,7 +312,7 @@ if(raw_counts == TRUE){ # only if raw counts are selected
     saveRDS(
       object = inference_result,
       file = paste0(
-        "scz_expression_bayes_regression_MCMC_rawcounts_clusterwise_",
+        "scz_expression_bayes_regression_MCMC_rawcounts_clusterwise_interactions_",
         norm,
         ".rds"
       )
