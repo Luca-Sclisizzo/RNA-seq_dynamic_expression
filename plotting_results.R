@@ -210,7 +210,7 @@ sum_0s <- ppc_stat(model_bayes_raw_counts_TMM$y, yrep_bayes_raw_counts_TMM, stat
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 # Single Gene Models & plots ------------------------------------------------------------
-# Single gene model: first gene as score
+####  Single gene model: first gene as score ####
 model_single_gene_fist_score <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_TMM.rds')
 yrep_model_gene_first <- rstanarm::posterior_predict(model_single_gene_fist_score, draws = 500)
 median_single_first_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat = "median", discrete = TRUE) + ggtitle('Median') + 
@@ -220,7 +220,7 @@ sd_single_first_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene
 sum_0s_single_first_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
-# Single gene model: 50th gene as score
+#### Single gene model: 50th gene as score ####
 model_single_gene_50_score <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_50_th_gene_TMM.rds')
 yrep_model_gene_50 <- rstanarm::posterior_predict(model_single_gene_50_score, draws = 500)
 median_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, stat = "median", discrete = TRUE) + ggtitle('Median') + 
@@ -230,18 +230,26 @@ sd_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, 
 sum_0s_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
-
 # Clusterwise Models & plots ----------------------------------------------
-model_clusterwise_intercept <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_TMM.rds')
-yrep_clusterwise <- rstanarm::posterior_predict(model_clusterwise_intercept, draws = 500)
-median_single_50_gene <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+####  Clusterwise random intercept #### 
+model_clusterwise_intercept <- readRDS("~/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_clusterwise_TMM.rds")
+yrep_clusterwise_intercept <- rstanarm::posterior_predict(model_clusterwise_intercept, draws = 500)
+median_single_50_gene <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat = "median", discrete = TRUE) + ggtitle('Median') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sd_single_50_gene <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+sd_single_50_gene <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s_single_50_gene <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
+sum_0s_single_50_gene <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
-
+#### Clusterwise fixed interaction (ns(Window)*Modules) ####
+model_clusterwise_interaction <- readRDS("~/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_clusterwise_interactions_TMM.rds")
+yrep_clusterwise_interaction <- rstanarm::posterior_predict(model_clusterwise_interaction, draws = 500)
+median_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sd_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+  theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+sum_0s_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 
 
