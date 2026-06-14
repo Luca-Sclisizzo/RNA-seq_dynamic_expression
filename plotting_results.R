@@ -13,6 +13,7 @@ library('patchwork')
 })
 norms <- c('TMM','RLE','upperquartile', 'none')
 windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw","35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
+par <- c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4')
 
 # Frequentist fit & plots -------------------------------------------------
 models_freq <- sapply(norms, function(norm) { # Loading the results
@@ -211,14 +212,17 @@ sum_0s <- ppc_stat(model_bayes_raw_counts_TMM$y, yrep_bayes_raw_counts_TMM, stat
 
 # Single Gene Models & plots ------------------------------------------------------------
 ####  Single gene model: first gene as score ####
-model_single_gene_fist_score <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_TMM.rds')
-yrep_model_gene_first <- rstanarm::posterior_predict(model_single_gene_fist_score, draws = 500)
-median_single_first_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+model_single_gene_first_score <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_TMM.rds')
+yrep_model_gene_first <- rstanarm::posterior_predict(model_single_gene_first_score, draws = 500)
+median_single_first_gene <- ppc_stat(model_single_gene_first_score$y, yrep_model_gene_first, stat = "median", discrete = TRUE) + ggtitle('Median') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sd_single_first_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+sd_single_first_gene <- ppc_stat(model_single_gene_first_score$y, yrep_model_gene_first, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s_single_first_gene <- ppc_stat(model_single_gene_fist_score$y, yrep_model_gene_first, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
+sum_0s_single_first_gene <- ppc_stat(model_single_gene_first_score$y, yrep_model_gene_first, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+# Spline coefficients distributions
+gene_first_spline_areas <- bayesplot::mcmc_areas(model_single_gene_first_score, pars = par)
 
 #### Single gene model: 50th gene as score ####
 model_single_gene_50_score <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_single_gene_50_th_gene_TMM.rds')
@@ -230,15 +234,19 @@ sd_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, 
 sum_0s_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
+# Spline coefficients distributions
+gene_50_spline_areas <- bayesplot::mcmc_areas(model_single_gene_50_score, pars = par)
+
+patchwork::wrap_plots(list(gene_first_spline_areas, gene_50_spline_areas))
 # Clusterwise Models & plots ----------------------------------------------
 ####  Clusterwise random intercept #### 
 model_clusterwise_intercept <- readRDS("~/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_clusterwise_TMM.rds")
 yrep_clusterwise_intercept <- rstanarm::posterior_predict(model_clusterwise_intercept, draws = 500)
-median_single_50_gene <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+median_clusterwise_intercept <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat = "median", discrete = TRUE) + ggtitle('Median') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sd_single_50_gene <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+sd__clusterwise_intercept <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s_single_50_gene <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
+sum_0s__clusterwise_intercept <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 #### Clusterwise fixed interaction (ns(Window)*Modules) ####
@@ -250,25 +258,6 @@ sd_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
 sum_0s_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
-
-
-
-# mcmc_areas(model_single_gene_fist_score, par = pars) +
-#   theme(plot.title = element_text(hjust = 0.5, size = 10))
-
-# mcmc_dens_overlay(model_single_gene_fist_score,par = pars) +
-#     theme(plot.title = element_text(hjust = 0.5, size = 10))
-
-
-
-# model_rstan <- readRDS('scz_expression_bayes_regression_rstan_TMM.rds')
-# model_rstan$summary(variables = c("alpha", "beta_spline", "sigma_u", "phi", "u_subject"))
-# print(model_rstan$diagnostic_summary())
-# #pointwise_lik <- model_rstan$draws("log_lik", format = "matrix")
-# #loo_model <- loo::loo(pointwise_lik)
-# mcmc_areas(model_rstan$draws("beta_spline"), binwidth = 0.025) +
-#   ggplot2::labs(subtitle = "Approximate posterior for spline")
-# 
 
 
 ### Model comparison (eventually)
@@ -286,5 +275,3 @@ sum_0s_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterw
 #   names(loo_bayes) <- paste0("loo_", norms)
 # }
 # loo_compare <- loo::loo_compare(loo_bayes[["loo_TMM"]], loo_bayes[["loo_RLE"]], loo_bayes[["loo_upperquartile"]], loo_bayes[["loo_none"]])
-
-
