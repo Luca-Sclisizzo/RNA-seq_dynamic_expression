@@ -175,16 +175,16 @@ if(raw_counts == FALSE){
     dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
   
   # data QC
-  # zero_rate <- int_RPKM_reshaped %>%
-  #   group_by(gene) %>%
-  #   summarise(prop_zero = mean(expression == 0))
-  # 
-  # counts_for_lowly_expressed <- int_RPKM_reshaped %>%
-  #   subset(gene %in% zero_rate[zero_rate$prop_zero >= 0.42,]$gene) # I chose .42 because the max expression was <8 and the 3rd quartile was 1
-  # 
-  # int_RPKM_reshaped <- int_RPKM_reshaped %>%
-  #   subset(!gene %in% counts_for_lowly_expressed$gene) # keep only the trustworthy genes
-  # hist(log(int_RPKM_reshaped$expression + 1))
+   # zero_rate <- int_RPKM_reshaped %>%
+   #   group_by(gene) %>%
+   #   summarise(prop_zero = mean(expression == 0))
+   # 
+   # counts_for_lowly_expressed <- int_RPKM_reshaped %>%
+   #   subset(gene %in% zero_rate[zero_rate$prop_zero >= 0.42,]$gene) # I chose .42 because the max expression was <8 and the 3rd quartile was 1
+   # 
+   # int_RPKM_reshaped <- int_RPKM_reshaped %>%
+   #   subset(!gene %in% counts_for_lowly_expressed$gene) # keep only the trustworthy genes
+   # hist(log(int_RPKM_reshaped$expression + 1))
   
   # Bayesian inference
   inference_result <- rstanarm::stan_glmer(

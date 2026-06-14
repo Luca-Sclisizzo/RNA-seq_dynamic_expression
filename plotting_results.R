@@ -260,6 +260,7 @@ sum_0s_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterw
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 
+
 ### Model comparison (eventually)
 # loo_activate <- FALSE
 # if (!loo_activate) {
