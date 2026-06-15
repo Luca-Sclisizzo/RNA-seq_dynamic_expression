@@ -10,49 +10,87 @@
 
 // The input data is a vector 'y' of length 'N'.
 data {
-  int<lower=1> N;            // number of observations
-  int<lower=1> K;            // spline basis dimension
-  int<lower=1> S;            // number of subjects
+  int<lower=1> N;
+  int<lower=1> K;
+  int<lower=1> S;
+  int<lower=1> M;
+  int<lower=1> G;                          // numero di geni
 
-  vector[N] age;
+  array[N] int<lower=1, upper=M> module;
+  array[N] int<lower=1, upper=S> subject;
+  array[N] int<lower=1, upper=G> gene;     // indice gene per ogni obs
+  matrix[N, K] B;
+  array[N] int<lower=0> y;
 
-  array[N] int<lower=1> subject;  // subject ID (1..S)
-
-  matrix[N, K] B;            // spline basis
-
-  array[N] int<lower=0> y;   // counts (expression)
+  // mappa gene -> modulo (per il prior gerarchico)
+  array[G] int<lower=1, upper=M> gene_module;
 }
-// The parameters accepted by the model
+
 parameters {
-  real alpha; // intercept of the spline
-  vector[K] beta_spline;
-  vector[S] z_subject; // standard normal (non-centered) - to solve the funnel structure
+  real alpha;
 
+  // Trend del modulo
+  matrix[M, K] beta_module;
+  vector[K] mu_beta;
+  vector<lower=0>[K] sigma_beta;
+
+  // Magnitudine gene-specifica (non-centered)
+  vector[G] z_gene;
+  vector<lower=0>[M] sigma_gene;   // varianza di magnitudine per modulo
+
+  // Soggetti
+  vector[S] z_subject;
   real<lower=0> sigma_u;
-  real<lower=1e-6> phi;  // NB dispersion, a little offset to prevent exact zero
+
+  real<lower=1e-6> phi;
 }
-// Non centered parametrization to solve funnel structure
+
 transformed parameters {
-  vector[S] u_subject = sigma_u * z_subject;  // building the subject-wise distribution using z_subject
+  vector[S] u_subject = sigma_u * z_subject;
+
+  // Effetto gene: non-centered, varianza dipende dal modulo
+  vector[G] gamma_gene;
+  for (g in 1:G)
+    gamma_gene[g] = sigma_gene[gene_module[g]] * z_gene[g];
 }
-// The model to be estimated. We model the output
-// 'y' to be NB distributed
+
 model {
-  // priors
-  beta_spline ~ normal(0, 1);
-  z_subject ~ normal(0, 1);     // prior on raw parameter
-  sigma_u ~ normal(0, 1); // subject-wise dispersion parameter (the shrinkage)
-  phi ~ exponential(1); // NB dispersion parameter
-  alpha ~ normal(0, 2); // spline's intercept
-  
-  vector[N] eta = alpha + B * beta_spline + u_subject[subject]; // pointwise eta to use for the generated_quantities{} chunk
+  // Iperpriori modulo
+  mu_beta    ~ normal(0, 1);
+  sigma_beta ~ normal(0, 0.5);
+  for (m in 1:M)
+    beta_module[m] ~ normal(mu_beta, sigma_beta);
+
+  // Prior magnitudine gene
+  z_gene     ~ normal(0, 1);
+  sigma_gene ~ normal(0, 0.5);    // shrinkage: geni dello stesso modulo
+
+  // Soggetti
+  z_subject ~ normal(0, 1);
+  sigma_u   ~ normal(0, 1);
+
+  // Globali
+  alpha ~ normal(0, 2);
+  phi   ~ exponential(1);
+
+  // Likelihood
+  vector[N] eta;
+  for (n in 1:N)
+    eta[n] = alpha
+             + dot_product(B[n], beta_module[module[n]])
+             + gamma_gene[gene[n]]       // offset magnitudine gene
+             + u_subject[subject[n]];
+
   y ~ neg_binomial_2_log(eta, phi);
 }
-// Generate quantities: point likelihood for loo estimate after the fit
+
 generated quantities {
   vector[N] log_lik;
-  vector[N] eta = alpha + B * beta_spline + u_subject[subject];
-  
-  for (n in 1:N)
-    log_lik[n] = neg_binomial_2_log_lpmf(y[n] | eta[n], phi);
+  for (n in 1:N) {
+    real eta_n = alpha
+                 + dot_product(B[n], beta_module[module[n]])
+                 + gamma_gene[gene[n]]
+                 + u_subject[subject[n]];
+    log_lik[n] = neg_binomial_2_log_lpmf(y[n] | eta_n, phi);
+  }
 }

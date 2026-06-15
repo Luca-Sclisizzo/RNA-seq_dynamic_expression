@@ -42,6 +42,7 @@ options(mc.cores = cores)
 
 # RNA-seq preprocessing & data manipulation -------------------------------
 transcript_lengths_file <- "transcript_lengths.csv"
+gene_network_membership <- read.csv("gene_network_membership.csv")
 scz_genes <- readxl::read_excel("SCZ_genes.xlsx")
 sample_metadata <- read.csv(
   "mRNA-seq_Sample metadata.csv",
@@ -105,7 +106,7 @@ counts <- read.delim(
     ]
   )
 
-##### Normalization factor for RNA-seq data ##### 
+# Normalization factor for RNA-seq data -----------------------------------
 # group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
 dge <- edgeR::DGEList(counts = counts) #, group = group)
 keep <- edgeR::filterByExpr(dge)
@@ -120,16 +121,13 @@ scz_genes <- scz_genes[ # reordering to avoid problems
   match(rownames(dge), scz_genes$GENE),
 ]
 
-# If we want to use integers, we set prior.count to 0 and set log = FALSE
-# Problem with this approach: these normalized pseudo-counts are not generated
-#   by a true negative binomial model as the raw counts are.
-int_RPKM <- edgeR::rpkm(
-  dge,
-  gene.length = scz_genes$transcript_length,
-  normalized.lib.size = TRUE,
-  log = FALSE,
-  prior.count = 0
-)
+# Raw Counts Manipulation -------------------------------------------------
+int_RPKM <- dge$counts
+
+normalization_factors <- dge$samples %>%
+  rownames_to_column("sample") %>%
+  mutate(offset = log(lib.size * norm.factors)) # this is the same than getOffset() function from edgeR
+
 int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
   rownames_to_column("gene") %>%
   pivot_longer(
@@ -137,17 +135,37 @@ int_RPKM_reshaped <- as.data.frame(int_RPKM) %>%
     names_to = "sample",
     values_to = "expression"
   ) %>%
+  left_join(normalization_factors, by= 'sample') %>%
   tidyr::separate(sample, into = c("subject", "area"), sep = "\\.") %>%
   left_join(
     sample_metadata %>%
       dplyr::select("Braincode", "Days", "Sex", "Sequencing.Site", "Window"),
     by = c("subject" = "Braincode"),
   ) %>%
-  dplyr::mutate(
-    expression = as.integer(round(.data$expression)),
-    Sequencing.Site = as.factor(Sequencing.Site)
+  left_join(
+    scz_genes %>% dplyr::select(GENE, transcript_length),
+    by = c('gene' = 'GENE')
   ) %>%
-  dplyr::filter(subject %in% sample_metadata$Braincode) # Keep only the EUR samples
+  mutate(
+    transcript_length = transcript_length / 1000, # transcript length in kb
+    expression = as.integer(round(.data$expression)),
+    across(c(Sex, area, subject, gene,Sequencing.Site), as.factor)
+  ) %>%
+  dplyr::filter(subject %in% sample_metadata$Braincode) %>% # Keep only the EUR samples
+    dplyr::left_join(gene_network_membership, by = c('gene' = 'Genes')) %>%
+    subset(!is.na(Modules)) %>% # removing the genes that do not cluster to any group
+    mutate(Modules = as.factor(Modules)) %>% # set it as a factor
+  mutate(
+    gene_idx    = as.integer(factor(gene)),
+    module_idx  = as.integer(factor(Modules))
+  )
+
+# gene Mapping
+gene_module_map <- int_RPKM_reshaped %>%
+  distinct(gene_idx, module_idx) %>%
+  arrange(gene_idx) %>%
+  pull(module_idx)
+
 
 # Bayesian Inference with rstan -------------------------------------------
 print("Fitting the model with cmdstanr...")
@@ -158,17 +176,23 @@ B <- ns(int_RPKM_reshaped$Window, df = 4) # building the spline
 B <- scale(B)
 subject <- as.integer(factor(int_RPKM_reshaped$subject)) # Creating J groups 1..J-th
 
-stan_data <- list( # shaping the df as a list of parameters
+stan_data <- list(
   N = nrow(int_RPKM_reshaped),
   K = ncol(B),
   S = length(unique(subject)),
+  M = length(unique(int_RPKM_reshaped$Modules)),
+  G = length(unique(int_RPKM_reshaped$gene)),
   
-  age = int_RPKM_reshaped$Window,
-  subject = subject, # Creating J groups 1..J-th
+  module      = int_RPKM_reshaped$module_idx,
+  gene        = int_RPKM_reshaped$gene_idx,
+  gene_module = gene_module_map,
+  age         = int_RPKM_reshaped$Window,
+  subject     = subject,
   
-  B = B, # Spline
-  y = int_RPKM_reshaped$expression # RNA-seq
+  B = B,
+  y = int_RPKM_reshaped$expression
 )
+
 
 fit <- model$sample( # Fitting the model 
   data = stan_data,
@@ -183,7 +207,7 @@ fit <- model$sample( # Fitting the model
 print('Done fitting the model, now saving the results...')
 fit$save_object(
   paste0(
-    "scz_expression_bayes_regression_rstan_",
+    "scz_expression_bayes_regression_rstan_clusterwise_gene_variability_",
     norm,
     ".rds"
   ))
