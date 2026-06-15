@@ -107,7 +107,7 @@ counts <- read.delim(
   )
 
 # Normalization factor for RNA-seq data -----------------------------------
-# group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
+group <- sub("\\..*$", "", colnames(counts)) # Braincode extraction
 dge <- edgeR::DGEList(counts = counts) #, group = group)
 keep <- edgeR::filterByExpr(dge)
 dge <- dge[keep, , keep.lib.sizes=FALSE]
