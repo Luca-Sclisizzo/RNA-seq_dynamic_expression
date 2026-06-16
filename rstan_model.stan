@@ -18,10 +18,11 @@ data {
 
   array[N] int<lower=1, upper=M> module;
   array[N] int<lower=1, upper=S> subject;
+  array[N] real log_offset;
   array[N] int<lower=1, upper=G> gene;     // indice gene per ogni obs
   matrix[N, K] B;
   array[N] int<lower=0> y;
-
+  
   // mappa gene -> modulo (per il prior gerarchico)
   array[G] int<lower=1, upper=M> gene_module;
 }
@@ -77,8 +78,9 @@ model {
   vector[N] eta;
   for (n in 1:N)
     eta[n] = alpha
+             + log_offset[n]
              + dot_product(B[n], beta_module[module[n]])
-             + gamma_gene[gene[n]]       // offset magnitudine gene
+             + gamma_gene[gene[n]]       // within-gene variability in the module
              + u_subject[subject[n]];
 
   y ~ neg_binomial_2_log(eta, phi);
@@ -86,11 +88,16 @@ model {
 
 generated quantities {
   vector[N] log_lik;
+  array[N] int y_rep;
+  
   for (n in 1:N) {
     real eta_n = alpha
+                 + log_offset[n]
                  + dot_product(B[n], beta_module[module[n]])
                  + gamma_gene[gene[n]]
                  + u_subject[subject[n]];
+    
     log_lik[n] = neg_binomial_2_log_lpmf(y[n] | eta_n, phi);
+    //y_rep[n]   = neg_binomial_2_log_rng(eta_n, phi);          // y_rep is commented and will be used later to calculate 100 y_rep values for PPC
   }
 }

@@ -242,20 +242,45 @@ model_clusterwise_intercept <- readRDS("~/RNA-seq_training/scz_expression_bayes_
 yrep_clusterwise_intercept <- rstanarm::posterior_predict(model_clusterwise_intercept, draws = 500)
 median_clusterwise_intercept <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat = "median", discrete = TRUE) + ggtitle('Median') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sd__clusterwise_intercept <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+sd_clusterwise_intercept <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s__clusterwise_intercept <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
+sum_0s_clusterwise_intercept <- ppc_stat(model_clusterwise_intercept$y, yrep_clusterwise_intercept, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 #### Clusterwise fixed interaction (ns(Window)*Modules) ####
 model_clusterwise_interaction <- readRDS("~/RNA-seq_training/scz_expression_bayes_regression_MCMC_rawcounts_clusterwise_interactions_TMM.rds")
 yrep_clusterwise_interaction <- rstanarm::posterior_predict(model_clusterwise_interaction, draws = 500)
-median_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+median_clusterwise_interaction <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat = "median", discrete = TRUE) + ggtitle('Median') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sd_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
+sd_clusterwise_interaction <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s_single_50_gene <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
+sum_0s_clusterwise_interaction <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+#### Clusterwise interaction  w gene variability(ns(Window)*Modules) ####
+model_clusterwise_interaction_w_variability <- readRDS('/Users/lucasclisizzo/RNA-seq_training/scz_expression_bayes_regression_rstan_clusterwise_gene_variability_TMM.rds')
+# model <- cmdstan_model("rstan_model.stan") # model with y_rep generation
+draws_df <- model_clusterwise_interaction_w_variability$draws(
+   format = "draw.array"
+ )[1:100, , ]  # prime 100 draws
+mcmc_trace(draws_df, pars = c("mu", "sigma"))
+par <- c(
+  "alpha",
+  as.vector(outer(1:9, 1:4, \(i, j) paste0("beta_module[", i, ",", j, "]")))
+)
+model_clusterwise_interaction_w_variability$summary(variables = par) |>
+  dplyr::filter(rhat > 1.01 | ess_bulk < 400)
+
+# gq_fit <- model$generate_quantities(
+#   fitted_params = draws_df,
+#   data = stan_data
+# )
+# y_rep <- gq_fit$draws("y_rep", format = "matrix")  # [S x N]
+# 
+# 
+# ppc_stat(stan_data$y, y_rep, stat = "median", discrete = TRUE) + ggtitle('Median') + 
+#   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
+
 
 
 
