@@ -200,8 +200,7 @@ fit <- model$sample( # Fitting the model
   iter_sampling = 1000,
   iter_warmup = 1000,
   chains = 4,
-  parallel_chains = 4,
-  init = 0.5
+  parallel_chains = 4
 )
 
 # Saving ------------------------------------------------------------------
@@ -212,3 +211,14 @@ fit$save_object(
     norm,
     ".rds"
   ))
+
+print('All done!\nPrinting the summary of the model fit:')
+par <- c(
+  "alpha",
+  as.vector(outer(1:9, 1:4, \(i, j) paste0("beta_module[", i, ",", j, "]")))
+)
+
+fit_summary <- fit$summary(variables = par) %>%
+  dplyr::filter(rhat > 1.01 | ess_bulk < 400)
+
+print(fit_summary)
