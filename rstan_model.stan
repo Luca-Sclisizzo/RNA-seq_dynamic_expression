@@ -73,7 +73,11 @@ model {
   // Globali
   alpha ~ normal(0, 2);
   phi   ~ exponential(1);
-
+  
+  // Identificabilità
+  sum(z_gene)    ~ normal(0, 0.1 * sqrt(G));
+  sum(z_subject) ~ normal(0, 0.1 * sqrt(S));
+  
   // Likelihood
   vector[N] eta;
   for (n in 1:N)
