@@ -188,6 +188,7 @@ stan_data <- list(
   gene_module = gene_module_map,
   age         = int_RPKM_reshaped$Window,
   subject     = subject,
+  log_offset = int_RPKM_reshaped$offset,
   
   B = B,
   y = int_RPKM_reshaped$expression
