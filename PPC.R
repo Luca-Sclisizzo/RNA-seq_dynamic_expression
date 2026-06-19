@@ -190,30 +190,12 @@ names(neff_ratios) <- ess_summary$variable
 neff_plot <- mcmc_neff(neff_ratios) +
   ggtitle("Neff Ratio Plot") + theme(plot.title = element_text(hjust = 0.5, size = 12))
 
-ggsave(
-  filename = "./neff_plot.png",
-  plot = neff_plot,
-  width = 10,
-  height = 8,
-  dpi = 300,
-  bg = "white"
-)
-
 # MCMC dens overlay plot
 dens_plot <- mcmc_dens_overlay(
   model_clusterwise_interaction_w_variability$draws(format = "df"),
   pars = par[1:6]
 ) +
   ggtitle("Density per Chain") + theme(plot.title = element_text(hjust = 0.5, size = 12))
-
-ggsave(
-  filename = "./dens_overlay_plot.png",
-  plot = dens_plot,
-  width = 10,
-  height = 8,
-  dpi = 300,
-  bg = "white"
-)
 
 # y_rep generation and PPC plots
 draws_df <- model_clusterwise_interaction_w_variability$draws(
@@ -238,14 +220,6 @@ PPC_patchwork <- patchwork::wrap_plots(PPC_list) +
      theme = theme(plot.title = element_text(hjust = 0.5), 
      plot.caption = element_text(hjust = 0)
 ))
-ggsave(
-  filename = "./PPC.patchwork.png",
-  plot = PPC_patchwork,
-  width = 10,
-  height = 8,
-  dpi = 300,
-  bg = "white"
-)
 
 # Saving results
 results_list$PPC <- PPC_patchwork
