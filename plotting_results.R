@@ -152,7 +152,7 @@ median_single_first_gene <- ppc_stat(model_single_gene_first_score$y, yrep_model
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
 sd_single_first_gene <- ppc_stat(model_single_gene_first_score$y, yrep_model_gene_first, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s_single_first_gene <- ppc_stat(model_single_gene_first_score$y, yrep_model_gene_first, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
+sum_0s_single_first_gene <- ppc_stat(model_single_gene_first_score$y, yrep_model_gene_first, stat=function(x) sum(x==0)) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 # Spline coefficients distributions
@@ -184,7 +184,7 @@ median_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
 sd_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
+sum_0s_single_50_gene <- ppc_stat(model_single_gene_50_score$y, yrep_model_gene_50, stat=function(x) sum(x==0)) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 # Spline coefficients distributions
@@ -232,8 +232,7 @@ spline_traj_single_gene <- ggplot(df_bayes_long, aes(x = Window, y = mean, color
                                     x = "Developmental window",
                                     y = "Predicted expression (posterior median)",
                                     color = "Gene",
-                                    fill = "Gene",
-                                    caption = "Light shaded areas represent 50% credible intervals (25–75% posterior quantiles)"
+                                    fill = "Gene"
                                   )
 
 # Clusterwise Models & plots ----------------------------------------------
@@ -244,7 +243,7 @@ median_clusterwise_interaction <- ppc_stat(model_clusterwise_interaction$y, yrep
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
 sd_clusterwise_interaction <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat = "sd", discrete = TRUE) + ggtitle('Sd') + 
   theme(plot.title = element_text(hjust = 0.5, size = 12)) + theme(legend.position = "none")
-sum_0s_clusterwise_interaction <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat=function(x) sum(x==0)) + xlim(0, 5) + ggtitle('Sum of 0s') +
+sum_0s_clusterwise_interaction <- ppc_stat(model_clusterwise_interaction$y, yrep_clusterwise_interaction, stat=function(x) sum(x==0)) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 
 #### Clusterwise interaction  w gene variability(ns(Window)*Modules) ####
