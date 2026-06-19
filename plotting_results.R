@@ -15,115 +15,42 @@ norms <- c('TMM','RLE','upperquartile', 'none')
 windownames <- c("8-9pcw","12-13pcw","16-17pcw","19-22pcw","35pcw \n 4mos","0.5-2.5y","3-11y","13-19y","21-40y")
 par <- c('ns(Window, df = 4)1', 'ns(Window, df = 4)2', 'ns(Window, df = 4)3', 'ns(Window, df = 4)4')
 
-# Frequentist fit & plots -------------------------------------------------
-models_freq <- sapply(norms, function(norm) { # Loading the results
-  readRDS(paste0("scz_expression_freq_regression_", norm, ".rds"))
-}, simplify = FALSE)
-
-
-# Preparing a newdata df to predict on
-newdata <- expand.grid(
-  Window = seq(1, 9, length.out = 200),
-  Sex = factor("F",levels = levels(model.frame(models_freq$TMM)$Sex)),
-  Sequencing.Site = factor("YALE",levels = levels(model.frame(models_freq$TMM)$Sequencing.Site)),
-  area = factor("DFC",levels = levels(model.frame(models_freq$TMM)$area)))
-# Predict
-for(norm in norms){
-  newdata[[paste0("pred_", norm)]] <- predict(
-    models_freq[[norm]],
-    newdata = newdata,
-    type = "response",
-    re.form = NA
-  )
-} 
-newdata <- pivot_longer(
-  newdata,
-  cols = starts_with("pred_"),
-  names_to = "normalization",
-  values_to = "prediction"
-)
-newdata$normalization <- sub("pred_", "", newdata$normalization)
-
-# Plotting
-trajecotry_plot_frequentist <- ggplot(
-  newdata,
-  aes(x = Window, y = prediction, color = normalization, group = normalization)
-) +
-  geom_line(linewidth = 0.6) +
-  scale_x_continuous(
-    breaks = seq(1:9),
-    labels = windownames
-  ) +
-  theme_classic(base_size = 13) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.title = element_blank()
-  ) +
-  geom_vline(xintercept = 5, linetype = "dashed", col = "grey") +
-  labs(
-    x = "Developmental window",
-    y = "Predicted expression"
-  )
-#print(trajecotry_plot_frequentist)
-# 
-# fe <- fixef(models_freq$TMM)
-# ci <- confint(models_freq$TMM, method = "Wald")
-# ci_fe <- ci[names(fe), ]
-# df_coef <- data.frame(
-#   term = names(fe),
-#   estimate = as.numeric(fe),
-#   lower = ci_fe[,1],
-#   upper = ci_fe[,2]
-# ) %>%
-#   dplyr::filter(!grepl("ns\\(Window", term))
-# 
-# 
-# ggplot(df_coef,
-#        aes(x = reorder(term, estimate),
-#            y = estimate)) +
-#   geom_point() +
-#   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
-#   coord_flip() +
-#   theme_minimal() +
-#   labs(x = "", y = "Effect size (β)")
-
-
 # Bayesian Complete pooling & plots ----------------------------------------------------
 #### Model with pseudocounts ####
-models_bayes <- sapply(norms, function(norm) { # Loading the results
-  readRDS(paste0("scz_expression_bayes_regression_MCMC_", norm, ".rds"))
-}, simplify = FALSE)
-
-posteriors_bayes <- lapply(norms, function(norm) {
-  as.array(models_bayes[[norm]])
-})
-names(posteriors_bayes) <- norms
-for (norm in norms) { # Renaming the spline coeffiecients names
-  dimnames(posteriors_bayes[[norm]])[[3]][2:5] <- paste0("spline_df", 1:4)
-}
-### Creating posterior plots using Bayesplot
-mcmc_areas_plots <- list()
-mcmc_dens_overlay_plots <- list()
-
-for (norm in norms){
-  pars <- c('spline_df1','spline_df2','spline_df3','spline_df4')
-  
-  mcmc_areas_plots[[norm]] <- mcmc_areas(posteriors_bayes[[norm]], 
-                                         par = pars) + ggtitle(norm) + 
-                                        theme(plot.title = element_text(hjust = 0.5, size = 10))
-  mcmc_dens_overlay_plots[[norm]] <- mcmc_dens_overlay(posteriors_bayes[[norm]],
-                                                       par = pars) + ggtitle(norm) + 
-                                                      theme(plot.title = element_text(hjust = 0.5, size = 10))
-  if (norm %in% c('RLE', 'none')){ # Removing y lables and ticks for the wrap
-    mcmc_areas_plots[[norm]] <- mcmc_areas_plots[[norm]] + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-  }
-}
-
-### Posterior predictive checks
-yrep_bayes <- setNames(
-  lapply(norms, function(norm){
-    yrep_bayes <- rstanarm::posterior_predict(models_bayes[[norm]], draws = 500)
-  }), norms)
+# models_bayes <- sapply(norms, function(norm) { # Loading the results
+#   readRDS(paste0("scz_expression_bayes_regression_MCMC_", norm, ".rds"))
+# }, simplify = FALSE)
+# 
+# posteriors_bayes <- lapply(norms, function(norm) {
+#   as.array(models_bayes[[norm]])
+# })
+# names(posteriors_bayes) <- norms
+# for (norm in norms) { # Renaming the spline coeffiecients names
+#   dimnames(posteriors_bayes[[norm]])[[3]][2:5] <- paste0("spline_df", 1:4)
+# }
+# ### Creating posterior plots using Bayesplot
+# mcmc_areas_plots <- list()
+# mcmc_dens_overlay_plots <- list()
+# 
+# for (norm in norms){
+#   pars <- c('spline_df1','spline_df2','spline_df3','spline_df4')
+#   
+#   mcmc_areas_plots[[norm]] <- mcmc_areas(posteriors_bayes[[norm]], 
+#                                          par = pars) + ggtitle(norm) + 
+#                                         theme(plot.title = element_text(hjust = 0.5, size = 10))
+#   mcmc_dens_overlay_plots[[norm]] <- mcmc_dens_overlay(posteriors_bayes[[norm]],
+#                                                        par = pars) + ggtitle(norm) + 
+#                                                       theme(plot.title = element_text(hjust = 0.5, size = 10))
+#   if (norm %in% c('RLE', 'none')){ # Removing y lables and ticks for the wrap
+#     mcmc_areas_plots[[norm]] <- mcmc_areas_plots[[norm]] + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+#   }
+# }
+# 
+# ### Posterior predictive checks
+# yrep_bayes <- setNames(
+#   lapply(norms, function(norm){
+#     yrep_bayes <- rstanarm::posterior_predict(models_bayes[[norm]], draws = 500)
+#   }), norms)
 # ppc_plots <- lapply(norms, function(norm) {
 #   ppc_stat(
 #     y = models_bayes[[norm]]$y,
