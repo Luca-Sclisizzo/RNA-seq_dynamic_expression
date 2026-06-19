@@ -8,6 +8,7 @@ library('tidyr')
 library('rstanarm')
 library('patchwork')
 library('cmdstanr')
+library('posterior')
 })
 
 norm <- 'TMM'
@@ -179,11 +180,45 @@ model <- cmdstan_model("rstan_model.stan") # model with y_rep generation
 convergence_checks <- model_clusterwise_interaction_w_variability$summary(variables = par) |>
   dplyr::filter(rhat > 1.01 | ess_bulk < 400)
 
+# Neff ratio calculation and plotting
+draws_arr <- model_clusterwise_interaction_w_variability$draws(variables = par)
+n_draws <- niterations(draws_arr) * nchains(draws_arr)
+ess_summary <- summarise_draws(draws_arr, ess_bulk)
+neff_ratios <- ess_summary$ess_bulk / n_draws
+names(neff_ratios) <- ess_summary$variable
+
+neff_plot <- mcmc_neff(neff_ratios) +
+  ggtitle("Neff Ratio Plot") + theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+ggsave(
+  filename = "./neff_plot.png",
+  plot = neff_plot,
+  width = 10,
+  height = 8,
+  dpi = 300,
+  bg = "white"
+)
+
+# MCMC dens overlay plot
+dens_plot <- mcmc_dens_overlay(
+  model_clusterwise_interaction_w_variability$draws(format = "df"),
+  pars = par[1:6]
+) +
+  ggtitle("Density per Chain") + theme(plot.title = element_text(hjust = 0.5, size = 12))
+
+ggsave(
+  filename = "./dens_overlay_plot.png",
+  plot = dens_plot,
+  width = 10,
+  height = 8,
+  dpi = 300,
+  bg = "white"
+)
+
+# y_rep generation and PPC plots
 draws_df <- model_clusterwise_interaction_w_variability$draws(
    format = "draws_matrix",
  )[1:100, ]  # first 100 draws
-
-trace_plot <- mcmc_trace(draws_df, pars = par)
 
 gq_fit <- model$generate_quantities(
    fitted_params = draws_df,
@@ -199,10 +234,22 @@ sum_0s <- ppc_stat(stan_data$y, y_rep, stat=function(x) sum(x==0)) + ggtitle('Su
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 PPC_list <- list(mean_ppc, sd_ppc, sum_0s)
 PPC_patchwork <- patchwork::wrap_plots(PPC_list) +
-     plot_annotation(title = 'PPC in partial pooling with gene-wise intercepts')
+     plot_annotation(title = 'PPC in partial pooling with gene-wise intercepts',
+     theme = theme(plot.title = element_text(hjust = 0.5), 
+     plot.caption = element_text(hjust = 0)
+))
+ggsave(
+  filename = "./PPC.patchwork.png",
+  plot = PPC_patchwork,
+  width = 10,
+  height = 8,
+  dpi = 300,
+  bg = "white"
+)
 
 # Saving results
 results_list$PPC <- PPC_patchwork
-results_list$trace_plot <- trace_plot
+results_list$neff_plot <- neff_plot
+results_list$dens_plot <- dens_plot
 results_list$convergence_checks <- convergence_checks
 saveRDS(results_list, './results_list.rds')

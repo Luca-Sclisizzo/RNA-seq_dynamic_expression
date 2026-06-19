@@ -93,7 +93,7 @@ model {
 generated quantities {
   vector[N] log_lik;
   array[N] int y_rep;
-  
+
   for (n in 1:N) {
     real eta_n = alpha
                  + log_offset[n]
@@ -102,6 +102,6 @@ generated quantities {
                  + u_subject[subject[n]];
     
     log_lik[n] = neg_binomial_2_log_lpmf(y[n] | eta_n, phi);
-    //y_rep[n]   = neg_binomial_2_log_rng(eta_n, phi);          // y_rep is commented and will be used later to calculate 100 y_rep values for PPC
+    y_rep[n]   = neg_binomial_2_log_rng(eta_n, phi);          // y_rep is commented and will be used later to calculate 100 y_rep values for PPC
   }
 }
