@@ -145,9 +145,6 @@ gene_module_map <- int_RPKM_reshaped %>%
 
 
 # rstan data list creation -------------------------------------------
-#print("Fitting the model with cmdstanr...")
-#print("Compiling the model...")
-#model <- cmdstan_model("rstan_model.stan")
 
 B <- ns(int_RPKM_reshaped$Window, df = 4) # building the spline
 B <- scale(B)
@@ -177,7 +174,7 @@ model_clusterwise_interaction_w_variability <- readRDS('./scz_expression_bayes_r
 print('Loading the model for y_rep generation...')
 model <- cmdstan_model("rstan_model.stan") # model with y_rep generation
 
-convergence_checks <- model_clusterwise_interaction_w_variability$summary(variables = par) |>
+convergence_checks <- model_clusterwise_interaction_w_variability$summary(variables = par) %>%
   dplyr::filter(rhat > 1.01 | ess_bulk < 400)
 
 # Neff ratio calculation and plotting
@@ -215,6 +212,7 @@ sd_ppc <- ppc_stat(stan_data$y, y_rep, stat = "sd", discrete = TRUE) + ggtitle('
 sum_0s <- ppc_stat(stan_data$y, y_rep, stat=function(x) sum(x==0)) + ggtitle('Sum of 0s') +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 PPC_list <- list(mean_ppc, sd_ppc, sum_0s)
+
 PPC_patchwork <- patchwork::wrap_plots(PPC_list) +
      plot_annotation(title = 'PPC in partial pooling with gene-wise intercepts',
      theme = theme(plot.title = element_text(hjust = 0.5), 
