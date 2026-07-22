@@ -60,7 +60,6 @@ renv/
 *.sh
 *.out
 *.rds
-*.Rmd
 *.html
 *.pdf
 *.png
@@ -68,7 +67,6 @@ renv/
 *.out
 *.exe
 Latent_mixture_try.R
-
 # R / RStan compiled objects
 *.o
 *.so
