@@ -1,4 +1,6 @@
-# RNA-seq Training
+# Spatiotemporal Cortical Transcriptome
+
+### *Modelling Trajectories Across the Lifespan*
 
 This repository contains the materials and analyses developed for an RNA-seq training project.
 
