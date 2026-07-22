@@ -59,6 +59,7 @@ renv/
 *.txt
 *.sh
 *.out
+*.Rmd
 *.rds
 *.pdf
 *.png
