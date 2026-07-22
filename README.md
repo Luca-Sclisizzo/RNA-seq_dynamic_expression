@@ -1,65 +1,128 @@
 # RNA-seq Training
 
-This repository contains materials and analyses for an RNA-seq training project.
+This repository contains the materials and analyses developed for an RNA-seq training project.
 
-We analyse transcriptomic data from the PsychENCODE consortium, which investigates gene expression across different developmental stages of the human brain.
+The project focuses on transcriptomic data from the PsychENCODE consortium, which investigates gene expression patterns across different developmental stages of the human brain.
 
-Data comes from post-mortem biological samples.
+The dataset consists of post-mortem human brain biological samples.
 
 ## Data
-Raw sequencing reads are available at:
-http://development.psychencode.org/#
 
-We will analyze SCZ genes from Trubetskoy et al. GWAS (https://www.nature.com/articles/s41586-022-04434-5).
+Raw sequencing data are available through the PsychENCODE portal:
 
-hMAGMA analysis is performed to map the SNPs into genes, using both positional mapping, eQTLs and HiC interactions.
-The list of Schizophrenia genes is in the SCZ_genes.xlsx file.
+<http://development.psychencode.org/>
+
+In this project, we focus on schizophrenia (SCZ)-associated genes identified by Trubetskoy et al. (GWAS):
+
+<https://www.nature.com/articles/s41586-022-04434-5>
+
+Gene mapping was performed using **hMAGMA**, integrating the following sources of information:
+
+- positional mapping,
+- expression quantitative trait loci (eQTL) information,
+- Hi-C chromatin interaction data.
+
+The resulting list of schizophrenia-associated genes is provided in:
+
+`SCZ_genes.xlsx`
 
 ## Objectives
-- Learn to model RNA-seq data with Bayesian approach
-- Perform quality control and preprocessing
-- Compare trajectories across normalization methods and modelling solutions 
-- Explore developmental transcriptomic patterns
 
-## Scripts description
-- **`PCA_and_exploratory_analyses.R`**
-  Performs exploratory data analysis and principal component analysis (PCA) to assess the impact of different normalization procedures on the dataset structure.
-- **`Frequentist_approach.R`**  
-  Fits hierarchical models using a frequentist framework. Includes diagnostic checks for convergence and model stability. This approach is used as a computationally efficient alternative to Bayesian inference.
-- **`Bayesian_approach.R`**
-  Implements hierarchical models within a Bayesian framework.
-- **`plotting_results.R`**  
-  Generates visualizations to summarize and compare results from hierarchical models.
-  
+The main objectives of this training project are:
+
+- Learn how to model RNA-seq data using Bayesian approaches.
+- Perform quality control and preprocessing of transcriptomic data.
+- Compare developmental expression trajectories across different normalization procedures and modelling strategies.
+- Explore developmental patterns of gene expression in the human brain.
+
+## Scripts Description
+
+- **`PCA_and_exploratory_analyses.R`**\
+  Performs exploratory data analysis and principal component analysis (PCA) to evaluate the impact of different normalization procedures on the structure of the dataset.
+
+- **`Bayesian_approach.R`**\
+  Implements hierarchical Bayesian models using the `rstanarm` package.
+
+- **`plotting_results.R`**\
+  Generates visualizations summarizing the results from hierarchical models fitted with `rstanarm`.
+
+- **`Network_analysis.R`**\
+  Performs weighted gene co-expression network analysis (WGCNA) using the `BioNERO` package.
+
+- **`Bayesian_w_stan.R`**\
+  Implements partial pooling hierarchical models using the `cmdstanr` interface.
+
+- **`rstan_model.stan`**\
+  Defines the Bayesian hierarchical model using Stan syntax. The model is compiled and executed from `Bayesian_w_stan.R`.
+
+- **`PPC_rstan.R`**\
+  Performs posterior predictive checks (PPCs) using the `posterior` package to summarize model diagnostics and generated quantities.
+
+## Generated Data
+
+The following files contain intermediate data generated during preprocessing and analysis:
+
+- **`transcript_lengths.csv`**\
+  Contains the lengths of all protein-coding transcripts corresponding to SCZ-associated genes. Transcript lengths were retrieved using the `biomaRt::useEnsembl()` function.
+
+- **`gene_variability_score.csv`**\
+  Contains gene-level quality scores, calculated as the ratio between inter-individual variance and intra-individual variance. Additional details are provided in the accompanying report.
+
+- **`gene_network_membership.csv`**\
+  Contains the membership of each gene to weighted co-expression network modules. These annotations are used as grouping structures in the partial pooling hierarchical models.
+
 ## Notes
+
 This repository is intended for training and educational purposes.
 
-## How to run on HPC
-* Make sure you have `Rv4.4.1`
-    * Install it system-wide
-    * Load a corresponding HPC module
-    * Install it inside a conda environment with `conda create -n my_r_env
-      conda-forge::r=4.4.1`
-* Initialize and restore the R virtual environment
-```bash
+## Running on HPC
+
+### 1. Set up the R environment
+
+Make sure that **R version 4.4.1** is available.
+
+You can either:
+
+- install R system-wide,
+- load an appropriate HPC module,
+- or create a dedicated conda environment:
+
+``` bash
+conda create -n my_r_env conda-forge::r=4.4.1
+```
+
+### 2. Initialize and restore the R virtual environment
+
+Navigate to the repository directory, activate the conda environment, and start R:
+
+``` bash
 cd /path/to/here || exit 1
 conda activate my_r_env
 R
-> renv::restore()
-> It looks like you've called renv::restore() in a project that hasn't been activated yet.
+```
+
+Inside R, restore the project dependencies using `renv`:
+
+``` r
+renv::restore()
+```
+
+If prompted with the following message:
+
+``` text
+It looks like you've called renv::restore() in a project that hasn't been activated yet.
+
 How would you like to proceed?
 
 1: Activate the project and use the project library.
 2: Do not activate the project and use the current library paths.
 3: Cancel and resolve the situation another way.
 
+Selection:
+```
+
+Select option **1** to activate the project and use the project-specific library:
+
+``` text
 Selection: 1
 ```
-* Run the [`sbatch_me.sh`](./sbatch_me.sh) script, after adjusting it to reflect
-  the path you cloned this repo in and the absolute path of your Rscript
-  interpreter, e.g.:
-  ```bash
-    /path/to/miniconda3/envs/R4.4/bin/Rscript \
-        /path/to/RNA-seq_training/preprocess_counts.R \
-        "$norm"
-  ```
