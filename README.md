@@ -10,7 +10,7 @@ The dataset consists of post-mortem human brain biological samples.
 
 A paper-style report describing the methodology, analyses, and results of this project is available in the rendered HTML document:
 
-[Spatiotemporal Cortical Transcriptome - Report](RNA-seq_training_report.html)
+[Spatiotemporal Cortical Transcriptome - Report](Bayesian_Statistics_project.html)
 
 ## Data
 
