@@ -8,6 +8,10 @@ The project focuses on transcriptomic data from the PsychENCODE consortium, whic
 
 The dataset consists of post-mortem human brain biological samples.
 
+A paper-style report describing the methodology, analyses, and results of this project is available in the rendered HTML document:
+
+[Spatiotemporal Cortical Transcriptome - Report](RNA-seq_training_report.html)
+
 ## Data
 
 Raw sequencing data are available through the PsychENCODE portal:
