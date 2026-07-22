@@ -60,13 +60,13 @@ renv/
 *.sh
 *.out
 *.rds
-*.html
 *.pdf
 *.png
 *bib
 *.out
 *.exe
 Latent_mixture_try.R
+README.html
 # R / RStan compiled objects
 *.o
 *.so
